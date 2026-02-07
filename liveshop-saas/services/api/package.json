@@ -1,0 +1,38 @@
+{
+  "name": "@liveshop/api",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "lint": "eslint src --ext .ts",
+    "db:generate": "cd ../../packages/shared && npx prisma generate"
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "@fastify/jwt": "^7.2.4",
+    "@fastify/multipart": "^8.0.0",
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/websocket": "^8.2.0",
+    "@liveshop/shared": "*",
+    "bullmq": "^5.1.0",
+    "dotenv": "^16.3.1",
+    "fastify": "^4.25.2",
+    "fastify-plugin": "^4.5.1",
+    "fastify-socket.io": "^5.0.0",
+    "ioredis": "^5.3.2",
+    "resend": "^2.1.0",
+    "socket.io": "^4.7.4",
+    "stripe": "^14.10.0",
+    "twilio": "^4.20.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}

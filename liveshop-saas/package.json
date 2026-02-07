@@ -1,0 +1,29 @@
+{
+  "name": "liveshop-saas",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "db:migrate": "cd packages/shared && npx prisma migrate dev",
+    "db:generate": "cd packages/shared && npx prisma generate",
+    "db:studio": "cd packages/shared && npx prisma studio",
+    "db:seed": "cd packages/shared && npx ts-node prisma/seed.ts",
+    "docker:up": "docker compose up -d",
+    "setup": "npm run docker:up && sleep 5 && npm run db:migrate"
+  },
+  "devDependencies": {
+    "prettier": "^3.1.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
