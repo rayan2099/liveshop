@@ -2,7 +2,7 @@
   "name": "liveshop-saas",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
+    "build": "npm run -w packages/shared build && npm run -w services/streaming build && npm run -w apps/web build",
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "test": "turbo run test",
