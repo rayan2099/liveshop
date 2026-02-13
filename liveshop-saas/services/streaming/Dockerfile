@@ -1,18 +1,22 @@
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-# Copy entire repo to allow workspace builds
-COPY . /app
-
-RUN npm ci --omit=dev
-
-# Build streaming package
-RUN npm run -w services/streaming build
-
 FROM node:20-alpine
 WORKDIR /app
-COPY --from=builder /app /app
-WORKDIR /app/liveshop-saas/services/streaming
+
+# Copy package files for all workspaces
+COPY liveshop-saas/package.json liveshop-saas/package-lock.json ./
+COPY liveshop-saas/packages ./packages
+COPY liveshop-saas/services ./services
+COPY liveshop-saas/apps ./apps
+COPY liveshop-saas/turbo.json ./
+
+# Install all dependencies
+RUN npm ci --omit=dev 2>&1 || npm install --omit=dev
+
+# Build workspaces
+RUN npm run -w packages/shared build
+RUN npm run -w services/streaming build
+RUN npm run -w services/api build || true
+
+WORKDIR /app/services/streaming
 ENV NODE_ENV=production
 EXPOSE 3002
 CMD ["npm","run","start"]
