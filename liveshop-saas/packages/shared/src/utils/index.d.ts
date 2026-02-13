@@ -1,0 +1,32 @@
+export declare function hashPassword(password: string): string;
+export declare function verifyPassword(password: string, hashedPassword: string): boolean;
+export declare function generateToken(length?: number): string;
+export declare function generateStreamKey(): string;
+export declare function generateOrderNumber(): string;
+export declare function addMinutes(date: Date, minutes: number): Date;
+export declare function addHours(date: Date, hours: number): Date;
+export declare function addDays(date: Date, days: number): Date;
+export declare function formatDuration(seconds: number): string;
+export declare function formatCurrency(amount: number, currency?: string): string;
+export declare function formatNumber(num: number): string;
+export declare function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number;
+export declare function generateSlug(text: string): string;
+export declare function isValidEmail(email: string): boolean;
+export declare function isValidPhone(phone: string): boolean;
+export declare function isValidUrl(url: string): boolean;
+export declare function chunkArray<T>(array: T[], size: number): T[][];
+export declare function uniqueArray<T>(array: T[]): T[];
+export declare function pick<T extends Record<string, unknown>, K extends keyof T>(obj: T, keys: K[]): Pick<T, K>;
+export declare function omit<T extends Record<string, unknown>, K extends keyof T>(obj: T, keys: K[]): Omit<T, K>;
+export declare function deepClone<T>(obj: T): T;
+export declare function sleep(ms: number): Promise<void>;
+export declare function retry<T>(fn: () => Promise<T>, attempts?: number, delay?: number): Promise<T>;
+export declare class RateLimiter {
+    private maxRequests;
+    private windowMs;
+    private requests;
+    constructor(maxRequests?: number, windowMs?: number);
+    isAllowed(key: string): boolean;
+    getRemainingRequests(key: string): number;
+    reset(key: string): void;
+}

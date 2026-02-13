@@ -230,19 +230,22 @@ export async function paymentRoutes(app: FastifyInstance) {
 
     // Handle events
     switch (event.type) {
-      case 'payment_intent.succeeded':
+      case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         await handlePaymentSuccess(paymentIntent);
         break;
+      }
 
-      case 'payment_intent.payment_failed':
+      case 'payment_intent.payment_failed': {
         const failedIntent = event.data.object as Stripe.PaymentIntent;
         await handlePaymentFailure(failedIntent);
         break;
+      }
 
-      case 'account.updated':
+      case 'account.updated': {
         // Handle Connect account updates
         break;
+      }
     }
 
     reply.send({ received: true });

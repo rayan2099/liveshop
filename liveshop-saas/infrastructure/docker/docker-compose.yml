@@ -5,24 +5,24 @@ services:
     image: postgis/postgis:15-3.4-alpine
     container_name: liveshop-postgres
     environment:
-      POSTGRES_USER: liveshop
-      POSTGRES_PASSWORD: liveshop
-      POSTGRES_DB: liveshop
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U liveshop"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   redis:
     image: redis:7-alpine
     container_name: liveshop-redis
-    ports:
-      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
@@ -30,19 +30,20 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   minio:
     image: minio/minio:latest
     container_name: liveshop-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
+    networks:
+      - internal
 
   # Optional: Mailpit for email testing
   mailpit:
@@ -51,8 +52,14 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+    networks:
+      - internal
 
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+
+networks:
+  internal:
+    driver: bridge

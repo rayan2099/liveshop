@@ -1,0 +1,35 @@
+groups:
+  - name: liveshop-service-rules
+    rules:
+      - alert: High5xxRate
+        expr: |
+          sum by (service) (rate(http_requests_total{status_code=~"5.."}[5m]))
+          /
+          sum by (service) (rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "High 5xx error rate for {{ $labels.service }}"
+          description: "5xx rate >5% over 5m. Investigate recent deploys and error logs."
+
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 1
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "High p95 latency for {{ $labels.service }}"
+          description: "P95 request latency > 1s over 5m. Triage slow endpoints and downstreams."
+
+      - alert: WebsocketDisconnectSpike
+        expr: |
+          increase(websocket_disconnects_total[5m]) > 10 and
+          increase(websocket_disconnects_total[5m]) / max(1, increase(websocket_connections_total[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Spike in websocket disconnects"
+          description: "Disconnects spiked relative to connections; possible instability or network issues."

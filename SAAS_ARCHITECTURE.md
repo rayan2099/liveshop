@@ -612,7 +612,7 @@ npx prisma migrate dev
 npm run dev
 
 # 5. Setup environment
-cp .env.example .env
+cp .env.template .env
 # Edit: DATABASE_URL, REDIS_URL, STRIPE_KEY, etc.
 ```
 

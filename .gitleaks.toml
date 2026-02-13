@@ -1,0 +1,6 @@
+title = "gitleaks config"
+
+[[rules]]
+description = "Generic credential" 
+regex = '''(?i)(password|passwd|pwd|secret|token|apikey|api_key)[\s:=\"']+[A-Za-z0-9\-_.+/=]{8,}'''
+tags = ["key", "password"]

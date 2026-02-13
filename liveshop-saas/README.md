@@ -75,7 +75,8 @@ npm install
 ### 2. Setup Environment
 
 ```bash
-cp .env.example .env
+# Copy the template and populate secrets (DO NOT commit real values)
+cp .env.template .env
 # Edit .env with your credentials
 ```
 

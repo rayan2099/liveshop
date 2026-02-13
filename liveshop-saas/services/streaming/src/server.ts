@@ -1,6 +1,8 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { randomUUID } from 'crypto';
+import client from 'prom-client';
 import * as mediasoup from 'mediasoup';
 import * as dotenv from 'dotenv';
 import * as os from 'os';
@@ -10,6 +12,44 @@ dotenv.config();
 const app = express();
 const server = createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+
+// Prometheus metrics
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+const wsConnections = new client.Counter({
+    name: 'websocket_connections_total',
+    help: 'Total websocket connections',
+    labelNames: ['tenant_id', 'user_id', 'room_id'],
+    registers: [register],
+});
+
+const wsDisconnects = new client.Counter({
+    name: 'websocket_disconnects_total',
+    help: 'Total websocket disconnects',
+    labelNames: ['tenant_id', 'user_id', 'room_id', 'reason'],
+    registers: [register],
+});
+
+// Metrics endpoint
+app.get('/metrics', async (_req, res) => {
+    try {
+        res.setHeader('Content-Type', register.contentType);
+        res.send(await register.metrics());
+    } catch (err) {
+        console.error('Failed to collect metrics', err);
+        res.status(500).send('error');
+    }
+});
+
+// HTTP request id middleware (also helps with tracing)
+app.use((req, _res, next) => {
+    const id = req.headers['x-request-id'] as string || randomUUID();
+    (req.headers as any)['x-request-id'] = id;
+    // attach a small context object for logs
+    (req as any)._logContext = { requestId: id };
+    next();
+});
 
 // Mediasoup workers
 const workers: mediasoup.types.Worker[] = [];
@@ -47,7 +87,13 @@ const rooms = new Map<string, {
 }>();
 
 io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
+    const reqId = (socket.handshake.headers['x-request-id'] as string) || randomUUID();
+    const roomId = socket.handshake.query.roomId as string || 'unknown';
+    const userId = socket.handshake.auth && (socket.handshake.auth as any).userId || 'anonymous';
+    const tenantId = socket.handshake.auth && (socket.handshake.auth as any).tenantId || 'unknown';
+
+    console.log('Client connected:', socket.id, { requestId: reqId, userId, tenantId, roomId });
+    wsConnections.labels(tenantId, userId, roomId).inc();
 
     socket.on('join-room', async ({ roomId }, callback) => {
         socket.join(roomId);
@@ -60,11 +106,13 @@ io.on('connection', (socket) => {
                     mimeType: 'audio/opus',
                     clockRate: 48000,
                     channels: 2,
+                    preferredPayloadType: 111,
                 },
                 {
                     kind: 'video',
                     mimeType: 'video/VP8',
                     clockRate: 90000,
+                    preferredPayloadType: 96,
                     parameters: {
                         'x-google-start-bitrate': 1000
                     }
@@ -98,10 +146,6 @@ io.on('connection', (socket) => {
                 if (dtlsState === 'closed') {
                     transport.close();
                 }
-            });
-
-            transport.on('close', () => {
-                console.log('transport closed');
             });
 
             callback({
@@ -143,7 +187,11 @@ io.on('connection', (socket) => {
     // Consume logic...
 
     socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
+        const roomId = socket.handshake.query.roomId as string || 'unknown';
+        const userId = socket.handshake.auth && (socket.handshake.auth as any).userId || 'anonymous';
+        const tenantId = socket.handshake.auth && (socket.handshake.auth as any).tenantId || 'unknown';
+        console.log('Client disconnected:', socket.id, { userId, tenantId, roomId });
+        wsDisconnects.labels(tenantId, userId, roomId, 'client_disconnect').inc();
     });
 });
 

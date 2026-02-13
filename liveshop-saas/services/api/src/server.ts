@@ -12,6 +12,8 @@ import websocket from '@fastify/websocket';
 import { PrismaClient } from '@liveshop/shared';
 import { setupSocketIO } from './plugins/socketio';
 import { authPlugin } from './plugins/auth';
+import { randomUUID } from 'crypto';
+import client from 'prom-client';
 
 // Import routes
 import { authRoutes } from './routes/auth';
@@ -53,6 +55,84 @@ const prisma = new PrismaClient({
 
 async function start() {
   try {
+    // Prometheus metrics setup
+    const register = new client.Registry();
+    client.collectDefaultMetrics({ register });
+
+    const httpRequests = new client.Counter({
+      name: 'http_requests_total',
+      help: 'Total number of HTTP requests',
+      labelNames: ['method', 'route', 'status_code', 'tenant_id', 'user_id'],
+      registers: [register],
+    });
+
+    const httpDuration = new client.Histogram({
+      name: 'http_request_duration_seconds',
+      help: 'HTTP request duration in seconds',
+      labelNames: ['method', 'route', 'tenant_id', 'user_id'],
+      buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.3, 0.5, 1, 2.5, 5, 10],
+      registers: [register],
+    });
+
+    // Expose /metrics
+    app.get('/metrics', async (_request, reply) => {
+      try {
+        reply.header('Content-Type', register.contentType);
+        const metrics = await register.metrics();
+        return reply.send(metrics);
+      } catch (err) {
+        app.log.error({ err }, 'Failed to collect metrics');
+        return reply.status(500).send('error');
+      }
+    });
+
+    // Request id + structured logging + metrics hooks
+    app.addHook('onRequest', async (request, _reply) => {
+      const reqId = (request.headers['x-request-id'] as string) || randomUUID();
+      // Attach request id header for downstream
+      (request.headers as any)['x-request-id'] = reqId;
+
+      // Pull user/tenant info if available from auth decoration
+      const userId = (request.user && (request.user as any).id) || 'anonymous';
+      const tenantId = (request.user && (request.user as any).tenantId) || 'unknown';
+
+      // Attach structured context to request logger
+      try {
+        request.log = request.log.child({ requestId: reqId, userId, tenantId });
+      } catch (e) {
+        // if child logger isn't supported, ignore
+      }
+      // start timer for duration
+      (request as any)._startAt = process.hrtime();
+    });
+
+    app.addHook('onResponse', async (request, reply) => {
+      const route = (request.routerPath || request.url) as string;
+      const method = request.method;
+      const status = String(reply.statusCode || 0);
+
+      // Observe duration
+      const startAt = (request as any)._startAt as [number, number] | undefined;
+      if (startAt) {
+        const diff = process.hrtime(startAt);
+        const durationSeconds = diff[0] + diff[1] / 1e9;
+        httpDuration.labels(method, route, (request.user && (request.user as any).tenantId) || 'unknown', (request.user && (request.user as any).id) || 'anonymous').observe(durationSeconds);
+      }
+
+      httpRequests.labels(method, route, status, (request.user && (request.user as any).tenantId) || 'unknown', (request.user && (request.user as any).id) || 'anonymous').inc();
+    });
+
+    // Security headers
+    app.addHook('onSend', async (_request, reply) => {
+      reply.header('X-Content-Type-Options', 'nosniff');
+      reply.header('X-Frame-Options', 'DENY');
+      reply.header('X-XSS-Protection', '1; mode=block');
+      reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+      if (process.env.NODE_ENV === 'production') {
+        reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+      }
+    });
+
     // Register plugins
     await app.register(cors, {
       origin: process.env.NODE_ENV === 'production'
@@ -111,7 +191,7 @@ async function start() {
 
     // Error handler
     app.setErrorHandler((error, request, reply) => {
-      app.log.error(error);
+      app.log.error({ err: error }, 'Request error');
 
       if (error.validation) {
         return reply.status(400).send({
@@ -163,6 +243,7 @@ async function start() {
             : error.message,
         },
       });
+      return;
     });
 
     // Not found handler

@@ -6,6 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
+    "test": "echo 'No tests configured yet' && exit 0",
     "db:generate": "cd ../../packages/shared && npx prisma generate"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "ioredis": "^5.3.2",
     "resend": "^2.1.0",
     "socket.io": "^4.7.4",
+    "prom-client": "^14.0.0",
     "stripe": "^14.10.0",
     "twilio": "^4.20.0",
     "zod": "^3.22.4"
