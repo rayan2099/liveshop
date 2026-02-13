@@ -1,0 +1,54 @@
+name: Deploy to Railway
+
+on:
+  workflow_run:
+    workflows: ["Build and publish backend images"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+        run: |
+          # Install Railway CLI
+          npm install -g @railway/cli
+          
+          # Get the latest commit SHA for image tags
+          SHA=${{ github.sha }}
+          REGISTRY="ghcr.io/${{ github.repository_owner }}"
+          API_IMAGE="$REGISTRY/liveshop-api:$SHA"
+          STREAMING_IMAGE="$REGISTRY/liveshop-streaming:$SHA"
+          
+          # Create or update API service
+          echo "Deploying API service..."
+          railway service create --name api --project $RAILWAY_PROJECT_ID || true
+          railway service select --name api --project $RAILWAY_PROJECT_ID
+          railway env set RAILWAY_DOCKERFILE_PATH=liveshop-saas/services/api/Dockerfile
+          railway env set DATABASE_URL=${{ secrets.DATABASE_URL }}
+          railway env set JWT_SECRET=${{ secrets.JWT_SECRET }}
+          railway env set NODE_ENV=production
+          railway env set REDIS_URL=${{ secrets.REDIS_URL }}
+          railway env set STRIPE_SECRET=${{ secrets.STRIPE_SECRET }}
+          railway up --detach
+          
+          # Create or update Streaming service
+          echo "Deploying Streaming service..."
+          railway service create --name streaming --project $RAILWAY_PROJECT_ID || true
+          railway service select --name streaming --project $RAILWAY_PROJECT_ID
+          railway env set RAILWAY_DOCKERFILE_PATH=liveshop-saas/services/streaming/Dockerfile
+          railway env set DATABASE_URL=${{ secrets.DATABASE_URL }}
+          railway env set REDIS_URL=${{ secrets.REDIS_URL }}
+          railway env set NODE_ENV=production
+          railway up --detach
+          
+          echo "✅ Deployment queued. Check Railway dashboard for status."
