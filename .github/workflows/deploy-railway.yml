@@ -20,35 +20,70 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
         run: |
-          # Install Railway CLI
-          npm install -g @railway/cli
+          echo "Deploying Docker images to Railway..."
           
-          # Get the latest commit SHA for image tags
-          SHA=${{ github.sha }}
+          COMMIT_SHA=${{ github.sha }}
           REGISTRY="ghcr.io/${{ github.repository_owner }}"
-          API_IMAGE="$REGISTRY/liveshop-api:$SHA"
-          STREAMING_IMAGE="$REGISTRY/liveshop-streaming:$SHA"
+          API_IMAGE="${REGISTRY}/liveshop-api:${COMMIT_SHA}"
+          STREAMING_IMAGE="${REGISTRY}/liveshop-streaming:${COMMIT_SHA}"
           
-          # Create or update API service
-          echo "Deploying API service..."
-          railway service create --name api --project $RAILWAY_PROJECT_ID || true
-          railway service select --name api --project $RAILWAY_PROJECT_ID
-          railway env set RAILWAY_DOCKERFILE_PATH=liveshop-saas/services/api/Dockerfile
-          railway env set DATABASE_URL=${{ secrets.DATABASE_URL }}
-          railway env set JWT_SECRET=${{ secrets.JWT_SECRET }}
-          railway env set NODE_ENV=production
-          railway env set REDIS_URL=${{ secrets.REDIS_URL }}
-          railway env set STRIPE_SECRET=${{ secrets.STRIPE_SECRET }}
-          railway up --detach
+          # Deploy via Railway REST API
+          API_URL="https://api.railway.app"
           
-          # Create or update Streaming service
-          echo "Deploying Streaming service..."
-          railway service create --name streaming --project $RAILWAY_PROJECT_ID || true
-          railway service select --name streaming --project $RAILWAY_PROJECT_ID
-          railway env set RAILWAY_DOCKERFILE_PATH=liveshop-saas/services/streaming/Dockerfile
-          railway env set DATABASE_URL=${{ secrets.DATABASE_URL }}
-          railway env set REDIS_URL=${{ secrets.REDIS_URL }}
-          railway env set NODE_ENV=production
-          railway up --detach
+          # Query for project services
+          SERVICES=$(curl -s -X POST "${API_URL}/graphql" \
+            -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query GetServices { services(input: {projectId: \"'"${RAILWAY_PROJECT_ID}"'\"}) { edges { node { id name } } } }"
+            }')
           
-          echo "✅ Deployment queued. Check Railway dashboard for status."
+          echo "Services found: $SERVICES"
+          
+          # Extract service IDs - these would come from the response
+          # For now, manually pass service IDs if they're known
+          # Or user provides them via GitHub secrets
+          
+          if [ -n "${{ secrets.RAILWAY_API_SERVICE_ID }}" ]; then
+            echo "Deploying API service..."
+            curl -s -X POST "${API_URL}/graphql" \
+              -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "mutation DeployImage($input: PluginDeployImageInput!) { pluginDeployImage(input: $input) { deployment { id } } }",
+                "variables": {
+                  "input": {
+                    "serviceId": "'"${{ secrets.RAILWAY_API_SERVICE_ID }}"'",
+                    "imageUri": "'"${API_IMAGE}"'"
+                  }
+                }
+              }' | tee api-deploy.json
+          fi
+          
+          if [ -n "${{ secrets.RAILWAY_STREAMING_SERVICE_ID }}" ]; then
+            echo "Deploying Streaming service..."
+            curl -s -X POST "${API_URL}/graphql" \
+              -H "Authorization: Bearer ${RAILWAY_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "query": "mutation DeployImage($input: PluginDeployImageInput!) { pluginDeployImage(input: $input) { deployment { id } } }",
+                "variables": {
+                  "input": {
+                    "serviceId": "'"${{ secrets.RAILWAY_STREAMING_SERVICE_ID }}"'",
+                    "imageUri": "'"${STREAMING_IMAGE}"'"
+                  }
+                }
+              }' | tee streaming-deploy.json
+          fi
+          
+          echo "✅ Images built and ready:"
+          echo "   API:       ${API_IMAGE}"
+          echo "   Streaming: ${STREAMING_IMAGE}"
+          echo ""
+          echo "Next steps:"
+          echo "1. Add these to GitHub Secrets (if doing automated deploy):"
+          echo "   RAILWAY_API_SERVICE_ID: <your-api-service-id>"
+          echo "   RAILWAY_STREAMING_SERVICE_ID: <your-streaming-service-id>"
+          echo ""
+          echo "2. OR manually deploy via Rail dashboard:"
+          echo "   https://railway.app/project/${RAILWAY_PROJECT_ID}"
