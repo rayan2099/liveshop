@@ -92,7 +92,8 @@ export async function streamRoutes(app: FastifyInstance) {
         },
       });
 
-      if (!membership && !['admin', 'super_admin'].includes(request.user.role)) {
+      const userRole = (request.user as any).role;
+      if (!membership && !['admin', 'super_admin'].includes(userRole)) {
         return reply.status(403).send({
           success: false,
           error: { code: 'FORBIDDEN', message: 'Not authorized to create streams for this store' },
@@ -105,11 +106,11 @@ export async function streamRoutes(app: FastifyInstance) {
       const stream = await app.prisma.liveStream.create({
         data: {
           storeId,
-          hostId: request.user.id,
+          hostId: (request.user as any).id,
           ...data,
           streamKey,
           roomId,
-          status: data.type === 'scheduled' ? 'scheduled' : 'scheduled',
+          status: data.type === 'scheduled' ? 'scheduled' : 'live',
         },
       });
 
@@ -189,7 +190,7 @@ export async function streamRoutes(app: FastifyInstance) {
       });
     }
 
-    const duration = stream.startedAt 
+    const duration = stream.startedAt
       ? Math.floor((Date.now() - stream.startedAt.getTime()) / 1000)
       : 0;
 

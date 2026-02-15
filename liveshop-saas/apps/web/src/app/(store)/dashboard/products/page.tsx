@@ -5,16 +5,23 @@ import { storeApi, productApi } from '@/lib/api';
 import { Package, Plus, Search, Filter, MoreVertical, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function ProductsPage() {
     const [search, setSearch] = useState('');
+    const searchParams = useSearchParams();
 
     // Fetch store ID
     const { data: storesData } = useQuery({
         queryKey: ['my-stores'],
         queryFn: () => storeApi.getMyStores(),
     });
-    const store = storesData?.data?.items?.[0];
+
+    const stores = storesData?.data?.data?.items || [];
+    const urlStoreId = searchParams.get('storeId');
+    const store = urlStoreId
+        ? stores.find((s: any) => s.id === urlStoreId) || stores[0]
+        : stores[0];
     const storeId = store?.id;
 
     const { data: productsData, isLoading } = useQuery({
@@ -23,7 +30,7 @@ export default function ProductsPage() {
         enabled: !!storeId,
     });
 
-    const products = productsData?.data?.items || [];
+    const products = productsData?.data?.data?.items || [];
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -32,7 +39,7 @@ export default function ProductsPage() {
                     <h1 className="font-display font-bold text-3xl">Products</h1>
                     <p className="text-white/60">Manage your store inventory and pricing</p>
                 </div>
-                <Link href="/dashboard/products/new" className="btn-primary flex items-center gap-2 self-start">
+                <Link href={storeId ? `/dashboard/products/new?storeId=${storeId}` : '/dashboard/products/new'} className="btn-primary flex items-center gap-2 self-start">
                     <Plus className="w-5 h-5" />
                     Add Product
                 </Link>
@@ -117,9 +124,9 @@ export default function ProductsPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="space-y-1">
-                                                <p className="font-medium text-neon-cyan">${product.price.toFixed(2)}</p>
+                                                <p className="font-medium text-neon-cyan">${Number(product.price).toFixed(2)}</p>
                                                 {product.compareAtPrice && (
-                                                    <p className="text-xs text-white/40 line-through">${product.compareAtPrice.toFixed(2)}</p>
+                                                    <p className="text-xs text-white/40 line-through">${Number(product.compareAtPrice).toFixed(2)}</p>
                                                 )}
                                             </div>
                                         </td>

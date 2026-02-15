@@ -41,7 +41,23 @@ export const createStoreSchema = z.object({
   }),
 });
 
-export const updateStoreSchema = createStoreSchema.partial();
+export const updateStoreSchema = z.object({
+  name: z.string().min(2).optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  address: z.object({
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postalCode: z.string().optional(),
+    country: z.string().optional(),
+    coordinates: z.object({
+      lat: z.number(),
+      lng: z.number(),
+    }).optional(),
+  }).optional(),
+  settings: z.record(z.unknown()).optional(),
+});
 
 // Product validations
 export const createProductSchema = z.object({
@@ -125,6 +141,8 @@ export const addressSchema = z.object({
 export const paginationSchema = z.object({
   page: z.string().or(z.number()).transform((v) => parseInt(String(v), 10)).default('1'),
   limit: z.string().or(z.number()).transform((v) => parseInt(String(v), 10)).default('20'),
+  q: z.string().optional(),
+  status: z.string().optional(),
 });
 
 // ID parameter validation

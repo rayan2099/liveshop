@@ -32,6 +32,8 @@ declare module 'fastify' {
     prisma: PrismaClient;
     io: any;
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    emitToUser: (userId: string, event: string, data: any) => void;
+    emitToStream: (streamId: string, event: string, data: any) => void;
   }
   interface FastifyRequest {
     user: {

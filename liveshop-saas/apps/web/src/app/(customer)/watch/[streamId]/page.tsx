@@ -163,7 +163,7 @@ export default function WatchStreamPage() {
                                         />
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-semibold truncate">{pinnedProduct.name}</h3>
-                                            <p className="text-neon-pink font-bold text-lg">${pinnedProduct.price}</p>
+                                            <p className="text-neon-pink font-bold text-lg">${Number(pinnedProduct.price).toFixed(2)}</p>
                                         </div>
                                         <button
                                             onClick={() => addToCart(pinnedProduct)}
@@ -307,7 +307,7 @@ export default function WatchStreamPage() {
                                                 <div className="flex items-center justify-between mb-4">
                                                     <span className="font-semibold">Total</span>
                                                     <span className="text-xl font-bold text-neon-pink">
-                                                        ${cart.reduce((sum, item) => sum + parseFloat(item.price), 0).toFixed(2)}
+                                                        ${cart.reduce((sum, item) => sum + (Number(item.price) * (item.quantity || 1)), 0).toFixed(2)}
                                                     </span>
                                                 </div>
                                                 <Link

@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { storeApi, orderApi } from '@/lib/api';
 import { ShoppingBag, Search, Filter, Clock, CheckCircle2, Package, Truck, XCircle, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 
 const STATUS_ICONS: Record<string, any> = {
@@ -24,7 +25,8 @@ const STATUS_COLORS: Record<string, string> = {
     cancelled: 'text-red-400 bg-red-400/10 border-red-400/20',
 };
 
-export default function StoreOrdersPage() {
+export default function OrdersPage() {
+    const searchParams = useSearchParams();
     const [statusFilter, setStatusFilter] = useState('');
 
     // Fetch store ID
@@ -32,7 +34,13 @@ export default function StoreOrdersPage() {
         queryKey: ['my-stores'],
         queryFn: () => storeApi.getMyStores(),
     });
-    const storeId = storesData?.data?.items?.[0]?.id;
+
+    const stores = storesData?.data?.data?.items || [];
+    const urlStoreId = searchParams.get('storeId');
+    const store = urlStoreId
+        ? stores.find((s: any) => s.id === urlStoreId) || stores[0]
+        : stores[0];
+    const storeId = store?.id;
 
     const { data: ordersData, isLoading, refetch } = useQuery({
         queryKey: ['store-orders', storeId, statusFilter],
@@ -46,7 +54,7 @@ export default function StoreOrdersPage() {
         onSuccess: () => refetch(),
     });
 
-    const orders = ordersData?.data?.items || [];
+    const orders = ordersData?.data?.data?.items || [];
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -70,8 +78,8 @@ export default function StoreOrdersPage() {
                         key={filter.label}
                         onClick={() => setStatusFilter(filter.value)}
                         className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${statusFilter === filter.value
-                                ? 'bg-neon-pink text-white border-neon-pink'
-                                : 'bg-white/5 text-white/60 border-white/10 hover:border-white/20'
+                            ? 'bg-neon-pink text-white border-neon-pink'
+                            : 'bg-white/5 text-white/60 border-white/10 hover:border-white/20'
                             }`}
                     >
                         {filter.label}
@@ -127,7 +135,7 @@ export default function StoreOrdersPage() {
                                             </div>
                                             <div className="bg-white/5 p-3 rounded-xl min-w-[200px]">
                                                 <p className="text-[10px] text-white/40 uppercase font-bold mb-1">Total Amount</p>
-                                                <p className="font-bold text-neon-cyan">${order.totalAmount.toFixed(2)}</p>
+                                                <p className="font-bold text-neon-cyan">${Number(order.totalAmount).toFixed(2)}</p>
                                                 <p className="text-xs text-white/40">{order.paymentStatus || 'unpaid'}</p>
                                             </div>
                                         </div>

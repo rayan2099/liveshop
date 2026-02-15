@@ -11,21 +11,17 @@ export async function productRoutes(app: FastifyInstance) {
     const { category, storeId, minPrice, maxPrice, sort } = request.query as any;
     const skip = (page - 1) * limit;
 
-    if (!q || q.length < 2) {
-      return reply.status(400).send({
-        success: false,
-        error: { code: 'INVALID_QUERY', message: 'Search query too short' },
-      });
-    }
-
     const where: any = {
       isActive: true,
-      OR: [
+    };
+
+    if (q && q.length >= 2) {
+      where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
         { description: { contains: q, mode: 'insensitive' } },
         { tags: { has: q } },
-      ],
-    };
+      ];
+    }
 
     if (storeId) where.storeId = storeId;
     if (category) where.tags = { has: category };
@@ -35,9 +31,9 @@ export async function productRoutes(app: FastifyInstance) {
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
 
-    const orderBy: any = sort === 'price_asc' ? { price: 'asc' } : 
-                         sort === 'price_desc' ? { price: 'desc' } : 
-                         { createdAt: 'desc' };
+    const orderBy: any = sort === 'price_asc' ? { price: 'asc' } :
+      sort === 'price_desc' ? { price: 'desc' } :
+        { createdAt: 'desc' };
 
     const [products, total] = await Promise.all([
       app.prisma.product.findMany({

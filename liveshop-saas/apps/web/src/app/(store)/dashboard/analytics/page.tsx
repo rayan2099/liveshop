@@ -4,13 +4,22 @@ import { useQuery } from '@tanstack/react-query';
 import { storeApi } from '@/lib/api';
 import { TrendingUp, DollarSign, ShoppingBag, Users, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react';
 
+import { useSearchParams } from 'next/navigation';
+
 export default function AnalyticsPage() {
+    const searchParams = useSearchParams();
     // Fetch store ID
     const { data: storesData } = useQuery({
         queryKey: ['my-stores'],
         queryFn: () => storeApi.getMyStores(),
     });
-    const storeId = storesData?.data?.items?.[0]?.id;
+
+    const stores = storesData?.data?.data?.items || [];
+    const urlStoreId = searchParams.get('storeId');
+    const store = urlStoreId
+        ? stores.find((s: any) => s.id === urlStoreId) || stores[0]
+        : stores[0];
+    const storeId = store?.id;
 
     const { data: analyticsData, isLoading } = useQuery({
         queryKey: ['store-analytics', storeId],

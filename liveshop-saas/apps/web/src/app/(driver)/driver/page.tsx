@@ -112,7 +112,7 @@ export default function DriverDashboardPage() {
                       <p className="text-sm text-white/50">{delivery.order?.items?.length} items • 2.4 km away</p>
                     </div>
                     <div className="bg-neon-cyan/10 px-3 py-1 rounded-lg">
-                      <p className="font-bold text-neon-cyan">${delivery.deliveryFee.toFixed(2)}</p>
+                      <p className="font-bold text-neon-cyan">${Number(delivery.deliveryFee).toFixed(2)}</p>
                     </div>
                   </div>
 
@@ -170,7 +170,7 @@ export default function DriverDashboardPage() {
                     </div>
                     <div className="bg-white/5 p-3 rounded-xl">
                       <p className="text-xs text-white/40 mb-1">Total Fee</p>
-                      <p className="font-medium text-sm text-neon-cyan">${(delivery.deliveryFee + (delivery.tipAmount || 0)).toFixed(2)}</p>
+                      <p className="font-medium text-sm text-neon-cyan">${(Number(delivery.deliveryFee) + (Number(delivery.tipAmount) || 0)).toFixed(2)}</p>
                     </div>
                   </div>
 

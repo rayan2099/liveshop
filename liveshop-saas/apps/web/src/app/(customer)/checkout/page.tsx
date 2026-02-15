@@ -14,12 +14,13 @@ export default function CheckoutPage() {
     const [orderId, setOrderId] = useState('');
 
     const [shippingAddress, setShippingAddress] = useState({
-        fullName: '',
-        street: '',
+        recipient: '',
+        street1: '',
+        street2: '',
         city: '',
         state: '',
-        zipCode: '',
-        country: 'USA',
+        postalCode: '',
+        country: 'US',
         phone: '',
     });
 
@@ -75,8 +76,8 @@ export default function CheckoutPage() {
             const orderData = {
                 items: items.map(item => ({
                     productId: item.id,
+                    variantId: item.variantId,
                     quantity: item.quantity || 1,
-                    price: item.price,
                 })),
                 shippingAddress,
                 paymentMethodId: 'mock_payment_method', // Mock payment
@@ -178,11 +179,11 @@ export default function CheckoutPage() {
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">Full Name</label>
+                                        <label className="block text-sm font-medium mb-2">Recipient Name</label>
                                         <input
                                             type="text"
-                                            name="fullName"
-                                            value={shippingAddress.fullName}
+                                            name="recipient"
+                                            value={shippingAddress.recipient}
                                             onChange={handleAddressChange}
                                             className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-neon-pink transition-colors"
                                             required
@@ -193,8 +194,8 @@ export default function CheckoutPage() {
                                         <label className="block text-sm font-medium mb-2">Street Address</label>
                                         <input
                                             type="text"
-                                            name="street"
-                                            value={shippingAddress.street}
+                                            name="street1"
+                                            value={shippingAddress.street1}
                                             onChange={handleAddressChange}
                                             className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-neon-pink transition-colors"
                                             required
@@ -231,8 +232,8 @@ export default function CheckoutPage() {
                                             <label className="block text-sm font-medium mb-2">ZIP Code</label>
                                             <input
                                                 type="text"
-                                                name="zipCode"
-                                                value={shippingAddress.zipCode}
+                                                name="postalCode"
+                                                value={shippingAddress.postalCode}
                                                 onChange={handleAddressChange}
                                                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-neon-pink transition-colors"
                                                 required
@@ -352,7 +353,7 @@ export default function CheckoutPage() {
                                                 <p className="font-medium text-sm truncate">{item.name}</p>
                                                 <p className="text-xs text-white/60">Qty: {item.quantity || 1}</p>
                                                 <p className="text-neon-pink font-semibold text-sm">
-                                                    ${(item.price * (item.quantity || 1)).toFixed(2)}
+                                                    ${(Number(item.price) * (item.quantity || 1)).toFixed(2)}
                                                 </p>
                                             </div>
                                         </div>
@@ -362,19 +363,19 @@ export default function CheckoutPage() {
                                 <div className="border-t border-white/10 pt-4 space-y-2 mb-6">
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="text-white/60">Subtotal</span>
-                                        <span>${subtotal.toFixed(2)}</span>
+                                        <span>${Number(subtotal).toFixed(2)}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="text-white/60">Shipping</span>
-                                        <span>${shipping.toFixed(2)}</span>
+                                        <span>${Number(shipping).toFixed(2)}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="text-white/60">Tax</span>
-                                        <span>${tax.toFixed(2)}</span>
+                                        <span>${Number(tax).toFixed(2)}</span>
                                     </div>
                                     <div className="border-t border-white/10 pt-2 flex items-center justify-between">
                                         <span className="font-semibold">Total</span>
-                                        <span className="font-bold text-xl text-neon-pink">${total.toFixed(2)}</span>
+                                        <span className="font-bold text-xl text-neon-pink">${Number(total).toFixed(2)}</span>
                                     </div>
                                 </div>
 

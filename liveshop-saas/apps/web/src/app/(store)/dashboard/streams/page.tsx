@@ -5,14 +5,22 @@ import { storeApi, streamApi } from '@/lib/api';
 import { Video, Plus, Calendar, Users, Eye, Play, StopCircle, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { useSearchParams } from 'next/navigation';
 
 export default function StreamsPage() {
+    const searchParams = useSearchParams();
     // Fetch store ID
     const { data: storesData } = useQuery({
         queryKey: ['my-stores'],
         queryFn: () => storeApi.getMyStores(),
     });
-    const storeId = storesData?.data?.items?.[0]?.id;
+
+    const stores = storesData?.data?.data?.items || [];
+    const urlStoreId = searchParams.get('storeId');
+    const store = urlStoreId
+        ? stores.find((s: any) => s.id === urlStoreId) || stores[0]
+        : stores[0];
+    const storeId = store?.id;
 
     const { data: streamsData, isLoading } = useQuery({
         queryKey: ['store-streams', storeId],
@@ -20,7 +28,7 @@ export default function StreamsPage() {
         enabled: !!storeId,
     });
 
-    const streams = streamsData?.data?.items || [];
+    const streams = streamsData?.data?.data?.items || [];
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

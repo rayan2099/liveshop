@@ -7,7 +7,7 @@ const idParamSchema = z.object({ id: z.string().uuid() });
 export async function deliveryRoutes(app: FastifyInstance) {
   // Get available deliveries (for drivers)
   app.get('/available', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (request.user.role !== 'driver') {
+    if ((request.user as any).role !== 'driver') {
       return reply.status(403).send({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Driver access required' },
@@ -42,7 +42,7 @@ export async function deliveryRoutes(app: FastifyInstance) {
 
   // Get my deliveries (driver)
   app.get('/my', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (request.user.role !== 'driver') {
+    if ((request.user as any).role !== 'driver') {
       return reply.status(403).send({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Driver access required' },
@@ -51,7 +51,8 @@ export async function deliveryRoutes(app: FastifyInstance) {
 
     const { status } = request.query as any;
 
-    const where: any = { driverId: request.user.id };
+    const userId = (request.user as any).id;
+    const where: any = { driverId: userId };
     if (status) where.status = status;
 
     const deliveries = await app.prisma.delivery.findMany({
@@ -99,7 +100,7 @@ export async function deliveryRoutes(app: FastifyInstance) {
     }
 
     // Check authorization
-    const isAuthorized = 
+    const isAuthorized =
       delivery.order.customerId === request.user.id ||
       delivery.driverId === request.user.id ||
       (await app.prisma.storeMember.findFirst({ where: { storeId: delivery.order.storeId, userId: request.user.id } })) ||
@@ -122,7 +123,7 @@ export async function deliveryRoutes(app: FastifyInstance) {
   app.post('/:id/accept', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = idParamSchema.parse(request.params);
 
-    if (request.user.role !== 'driver') {
+    if ((request.user as any).role !== 'driver') {
       return reply.status(403).send({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Driver access required' },
@@ -148,23 +149,20 @@ export async function deliveryRoutes(app: FastifyInstance) {
       });
     }
 
+    const userId = (request.user as any).id;
     const updatedDelivery = await app.prisma.delivery.update({
       where: { id },
       data: {
-        driverId: request.user.id,
+        driverId: userId,
         status: 'driver_accepted',
         acceptedAt: new Date(),
       },
     });
 
-    // Update order status
-    await app.prisma.order.update({
-      where: { id: delivery.orderId },
-      data: { status: 'picked_up' },
-    });
-
     // Notify customer
-    app.emitToUser?.(delivery.order.customerId, 'delivery-assigned', { deliveryId: id });
+    if (app.emitToUser) {
+      app.emitToUser(delivery.order.customerId, 'delivery-assigned', { deliveryId: id });
+    }
 
     reply.send({
       success: true,
@@ -190,7 +188,9 @@ export async function deliveryRoutes(app: FastifyInstance) {
     }
 
     // Only assigned driver or admin can update
-    if (delivery.driverId !== request.user.id && !['admin', 'super_admin'].includes(request.user.role)) {
+    const userId = (request.user as any).id;
+    const userRole = (request.user as any).role;
+    if (delivery.driverId !== userId && !['admin', 'super_admin'].includes(userRole)) {
       return reply.status(403).send({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Not authorized' },
@@ -243,7 +243,7 @@ export async function deliveryRoutes(app: FastifyInstance) {
   // Update driver location
   app.put('/location', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      if (request.user.role !== 'driver') {
+      if ((request.user as any).role !== 'driver') {
         return reply.status(403).send({
           success: false,
           error: { code: 'FORBIDDEN', message: 'Driver access required' },
@@ -310,7 +310,7 @@ export async function deliveryRoutes(app: FastifyInstance) {
 
   // Toggle driver availability
   app.post('/toggle-availability', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    if (request.user.role !== 'driver') {
+    if ((request.user as any).role !== 'driver') {
       return reply.status(403).send({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Driver access required' },
