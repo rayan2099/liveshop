@@ -1,10 +1,10 @@
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 
 # Install dependencies only when needed
 FROM base AS builder
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ecf2643bc2a1696c9#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat openssl
-RUN apk update
+# Install necessary libraries for Debian
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 RUN npm install -g turbo@1.11.0
@@ -13,8 +13,7 @@ RUN turbo prune --scope=@liveshop/api --docker
 
 # Add lockfile and package.json's of isolated subworkspace
 FROM base AS installer
-RUN apk add --no-cache libc6-compat openssl
-RUN apk update
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # First install dependencies (as they change less often)
@@ -36,9 +35,12 @@ RUN npx turbo build --filter=@liveshop/api...
 FROM base AS runner
 WORKDIR /app
 
+# Install openssl in runner as well
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Create a non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 fastify
+RUN groupadd --system --gid 1001 nodejs
+RUN useradd --system --uid 1001 fastify
 USER fastify
 
 COPY --from=installer /app .
