@@ -35,7 +35,11 @@ export async function notificationRoutes(app: FastifyInstance) {
         await app.prisma.pushSubscription.create({
           data: {
             userId: request.user.id,
-            ...data,
+            endpoint: data.endpoint,
+            p256dh: data.p256dh,
+            auth: data.auth,
+            deviceType: data.deviceType,
+            deviceId: data.deviceId,
           },
         });
       }

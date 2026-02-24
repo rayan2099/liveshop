@@ -134,9 +134,12 @@ export async function streamRoutes(app: FastifyInstance) {
 
       const stream = await app.prisma.liveStream.create({
         data: {
-          storeId,
-          hostId: (request.user as any).id,
-          ...data,
+          store: { connect: { id: storeId } },
+          host: { connect: { id: (request.user as any).id } },
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
           streamKey,
           roomId,
           status: data.type === 'scheduled' ? 'scheduled' : 'live',

@@ -2,7 +2,7 @@
   "name": "@liveshop/api",
   "version": "0.0.1",
   "scripts": {
-    "build": "echo 'skip build (temporary)'",
+    "build": "tsc",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",

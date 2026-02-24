@@ -119,8 +119,19 @@ export async function productRoutes(app: FastifyInstance) {
 
       const product = await app.prisma.product.create({
         data: {
-          storeId,
-          ...data,
+          store: { connect: { id: storeId } },
+          name: data.name,
+          description: data.description,
+          sku: data.sku,
+          price: data.price,
+          compareAtPrice: data.compareAtPrice,
+          inventoryQuantity: data.inventoryQuantity,
+          inventoryPolicy: data.inventoryPolicy,
+          weight: data.weight,
+          images: data.images,
+          variants: data.variants as any,
+          attributes: data.attributes as any,
+          tags: data.tags,
         },
       });
 

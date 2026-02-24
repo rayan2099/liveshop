@@ -199,8 +199,17 @@ export async function userRoutes(app: FastifyInstance) {
 
       const address = await app.prisma.address.create({
         data: {
-          userId: request.user.id,
-          ...data,
+          user: { connect: { id: request.user.id } },
+          label: data.label,
+          recipient: data.recipient,
+          phone: data.phone,
+          street1: data.street1,
+          street2: data.street2,
+          city: data.city,
+          state: data.state,
+          postalCode: data.postalCode,
+          country: data.country,
+          isDefault: data.isDefault,
         },
       });
 
