@@ -24,6 +24,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@liveshop/shared": [
+        "../../packages/shared/dist/index.d.ts"
       ]
     }
   },
