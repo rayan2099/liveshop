@@ -6,7 +6,6 @@ dist
 .env
 .env.*
 .git
-.gitignore
 README.md
 docker-compose.yml
 infrastructure/docker
