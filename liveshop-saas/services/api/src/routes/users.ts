@@ -104,10 +104,10 @@ export async function userRoutes(app: FastifyInstance) {
         where: { id: request.user.id },
         data: {
           profile: {
-            ...(await app.prisma.user.findUnique({
+            ...((await app.prisma.user.findUnique({
               where: { id: request.user.id },
               select: { profile: true },
-            }))?.profile,
+            }))?.profile as Record<string, any> ?? {}),
             ...data,
           },
         },
@@ -139,7 +139,7 @@ export async function userRoutes(app: FastifyInstance) {
   // Upload avatar
   app.post('/me/avatar', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const data = await request.file();
-    
+
     if (!data) {
       return reply.status(400).send({
         success: false,
@@ -154,10 +154,10 @@ export async function userRoutes(app: FastifyInstance) {
       where: { id: request.user.id },
       data: {
         profile: {
-          ...(await app.prisma.user.findUnique({
+          ...((await app.prisma.user.findUnique({
             where: { id: request.user.id },
             select: { profile: true },
-          }))?.profile,
+          }))?.profile as Record<string, any> ?? {}),
           avatar: avatarUrl,
         },
       },

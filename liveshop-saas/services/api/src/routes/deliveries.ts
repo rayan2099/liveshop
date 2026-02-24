@@ -40,6 +40,116 @@ export async function deliveryRoutes(app: FastifyInstance) {
     });
   });
 
+  // Get deliveries for a store (store owner/staff)
+  app.get('/store/:storeId', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { storeId } = request.params as { storeId: string };
+    const { status } = request.query as any;
+
+    // Check store membership
+    const userId = (request.user as any).id;
+    const userRole = (request.user as any).role;
+    const membership = await app.prisma.storeMember.findFirst({
+      where: { storeId, userId },
+    });
+
+    if (!membership && !['admin', 'super_admin'].includes(userRole)) {
+      return reply.status(403).send({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Not authorized' },
+      });
+    }
+
+    const where: any = { order: { storeId } };
+    if (status) where.status = status;
+
+    const deliveries = await app.prisma.delivery.findMany({
+      where,
+      include: {
+        order: {
+          include: {
+            customer: { select: { id: true, profile: true, phone: true } },
+            items: { select: { name: true, quantity: true, total: true } },
+          },
+        },
+        driver: { select: { id: true, profile: true, phone: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    reply.send({
+      success: true,
+      data: { deliveries },
+    });
+  });
+
+  // Track delivery for an order (customer-facing)
+  app.get('/track/:orderId', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { orderId } = request.params as { orderId: string };
+
+    const delivery = await app.prisma.delivery.findUnique({
+      where: { orderId },
+      include: {
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
+            customerId: true,
+            storeId: true,
+            status: true,
+            shippingAddress: true,
+            items: { select: { name: true, quantity: true, image: true } },
+            store: { select: { id: true, name: true, logoUrl: true, address: true } },
+            timeline: { orderBy: { createdAt: 'asc' } },
+          },
+        },
+        driver: {
+          select: {
+            id: true,
+            profile: true,
+            phone: true,
+            driverProfile: {
+              select: {
+                vehicleType: true,
+                vehicleMake: true,
+                vehicleModel: true,
+                vehicleColor: true,
+                rating: true,
+                totalDeliveries: true,
+                currentLocation: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!delivery) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Delivery not found for this order' },
+      });
+    }
+
+    // Only the customer, driver, store staff, or admin can view
+    const isAuthorized =
+      delivery.order.customerId === request.user.id ||
+      delivery.driverId === request.user.id ||
+      (await app.prisma.storeMember.findFirst({ where: { storeId: delivery.order.storeId, userId: request.user.id } })) ||
+      ['admin', 'super_admin'].includes(request.user.role);
+
+    if (!isAuthorized) {
+      return reply.status(403).send({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Not authorized' },
+      });
+    }
+
+    reply.send({
+      success: true,
+      data: { delivery },
+    });
+  });
+
   // Get my deliveries (driver)
   app.get('/my', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     if ((request.user as any).role !== 'driver') {
@@ -198,7 +308,7 @@ export async function deliveryRoutes(app: FastifyInstance) {
     }
 
     // Validate status transition
-    const allowedTransitions = DELIVERY_STATUS_FLOW[delivery.status as keyof typeof DELIVERY_STATUS_FLOW] || [];
+    const allowedTransitions = (DELIVERY_STATUS_FLOW[delivery.status as keyof typeof DELIVERY_STATUS_FLOW] || []) as unknown as string[];
     if (!allowedTransitions.includes(status)) {
       return reply.status(400).send({
         success: false,

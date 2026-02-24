@@ -24,9 +24,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Server-side: cannot access localStorage, skip token refresh entirely
+    if (typeof window === 'undefined') {
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config;
 
-    // Handle 401 errors
+    // Handle 401 errors – attempt silent token refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -47,11 +52,9 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // Clear tokens and redirect to login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          window.location.href = '/login';
-        }
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }
@@ -67,6 +70,9 @@ export const authApi = {
   logout: (refreshToken: string) => api.post('/auth/logout', { refreshToken }),
   refresh: (refreshToken: string) => api.post('/auth/refresh', { refreshToken }),
   me: () => api.get('/auth/me'),
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) =>
+    api.post('/auth/reset-password', { token, password }),
 };
 
 // User API
@@ -116,6 +122,7 @@ export const streamApi = {
   pinProduct: (id: string, data: any) => api.post(`/streams/${id}/pin`, data),
   getChat: (id: string, params?: any) => api.get(`/streams/${id}/chat`, { params }),
   sendMessage: (id: string, data: any) => api.post(`/streams/${id}/chat`, data),
+  getToken: (id: string) => api.get(`/streams/${id}/token`),
 };
 
 // Order API
@@ -136,11 +143,23 @@ export const deliveryApi = {
   updateStatus: (id: string, data: any) => api.put(`/deliveries/${id}/status`, data),
   updateLocation: (data: any) => api.put('/deliveries/location', data),
   toggleAvailability: () => api.post('/deliveries/toggle-availability'),
+  getStoreDeliveries: (storeId: string, params?: any) => api.get(`/deliveries/store/${storeId}`, { params }),
+  trackDelivery: (orderId: string) => api.get(`/deliveries/track/${orderId}`),
 };
 
-// Payment API
+// Payment API (Moyasar)
 export const paymentApi = {
-  createIntent: (data: any) => api.post('/payments/create-intent', data),
-  capture: (data: any) => api.post('/payments/capture', data),
-  refund: (data: any) => api.post('/payments/refund', data),
+  /** Get publishable key + config from server */
+  getConfig: () => api.get('/payments/config'),
+  /** Create a pending payment record and get amount in Halalas for the Moyasar form */
+  preparePayment: (orderId: string) => api.post('/payments/prepare', { orderId }),
+  /** Verify payment after Moyasar redirects back and confirm the order */
+  confirmPayment: (moyasarPaymentId: string, orderId: string) =>
+    api.post('/payments/callback', { moyasarPaymentId, orderId }),
+  /** Store owner / admin refund */
+  refund: (orderId: string, amount?: number, reason?: string) =>
+    api.post('/payments/refund', { orderId, amount, reason }),
+  /** Get payment details for an order */
+  getOrderPayment: (orderId: string) => api.get(`/payments/order/${orderId}`),
 };
+

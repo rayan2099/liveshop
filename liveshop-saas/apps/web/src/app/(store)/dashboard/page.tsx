@@ -125,7 +125,7 @@ export default function StoreDashboardPage() {
           <h1 className="font-display font-bold text-3xl text-white">Dashboard</h1>
           <p className="text-white/60">Managed Store: <span className="text-neon-cyan font-semibold">{store.name}</span></p>
         </div>
-        <Link href={`/broadcast?storeId=${storeId}`} className="btn-primary flex items-center gap-2 px-8 py-3">
+        <Link href={`/dashboard/broadcast?storeId=${storeId}`} className="btn-primary flex items-center gap-2 px-8 py-3">
           <Video className="w-5 h-5" />
           Go Live Now
         </Link>
@@ -260,6 +260,15 @@ export default function StoreDashboardPage() {
               <p className="text-sm text-white/40">Manage your stock</p>
             </div>
           </Link>
+          <Link href={storeId ? `/dashboard/deliveries?storeId=${storeId}` : '/dashboard/deliveries'} className="group flex flex-col gap-4 p-6 bg-white/5 rounded-2xl hover:bg-neon-cyan/10 transition-all border border-white/5 hover:border-neon-cyan/30">
+            <div className="w-14 h-14 rounded-xl bg-neon-cyan/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Package className="w-8 h-8 text-neon-cyan" />
+            </div>
+            <div>
+              <p className="font-bold text-lg text-white">Deliveries</p>
+              <p className="text-sm text-white/40">Track fulfillment</p>
+            </div>
+          </Link>
           <Link href={storeId ? `/dashboard/analytics?storeId=${storeId}` : '/dashboard/analytics'} className="group flex flex-col gap-4 p-6 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-white/5 hover:border-white/20">
             <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
               <TrendingUp className="w-8 h-8 text-white" />
@@ -267,6 +276,15 @@ export default function StoreDashboardPage() {
             <div>
               <p className="font-bold text-lg text-white">Analytics</p>
               <p className="text-sm text-white/40">Track your performance</p>
+            </div>
+          </Link>
+          <Link href={storeId ? `/dashboard/broadcast?storeId=${storeId}` : '/dashboard/broadcast'} className="group flex flex-col gap-4 p-6 bg-neon-pink/10 rounded-2xl hover:bg-neon-pink/20 transition-all border border-neon-pink/20 hover:border-neon-pink/40">
+            <div className="w-14 h-14 rounded-xl bg-neon-pink/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Video className="w-8 h-8 text-neon-pink" />
+            </div>
+            <div>
+              <p className="font-bold text-lg text-white">Go Live</p>
+              <p className="text-sm text-white/40">Launch a live shopping show</p>
             </div>
           </Link>
         </div>

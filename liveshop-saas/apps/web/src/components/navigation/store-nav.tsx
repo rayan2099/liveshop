@@ -8,6 +8,7 @@ import { LayoutDashboard, Video, Package, ShoppingBag, BarChart3, Settings, LogO
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/streams', label: 'Streams', icon: Video },
+  { href: '/dashboard/broadcast', label: 'Go Live', icon: Video },
   { href: '/dashboard/products', label: 'Products', icon: Package },
   { href: '/dashboard/orders', label: 'Orders', icon: ShoppingBag },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },

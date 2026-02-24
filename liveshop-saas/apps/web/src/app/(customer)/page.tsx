@@ -5,58 +5,26 @@ import { Play, ShoppingBag, Truck, Store, ArrowRight, User, Star, MapPin } from 
 import { StreamCard } from '@/components/streams/StreamCard';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
-import { storeApi } from '@/lib/api';
+import { storeApi, streamApi } from '@/lib/api';
 
-// Temporary mock data
-const mockStreams = [
-    {
-        id: '1',
-        title: 'New Spring Collection Launch!',
-        storeName: 'Fashion Forward',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&auto=format&fit=crop&q=60',
-        viewerCount: 1205,
-        isLive: true,
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=64&h=64&auto=format&fit=crop&q=80'
-    },
-    {
-        id: '2',
-        title: 'Cooking Demo: Italian Pasta',
-        storeName: 'Chef\'s Kitchen',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1556910103-1c02745a30bf?w=800&auto=format&fit=crop&q=60',
-        viewerCount: 850,
-        isLive: true,
-        avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&auto=format&fit=crop&q=80'
-    },
-    {
-        id: '3',
-        title: 'Live Review: Tech Gadgets 2026',
-        storeName: 'Tech World',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&auto=format&fit=crop&q=60',
-        viewerCount: 3400,
-        isLive: true,
-        avatarUrl: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=64&h=64&auto=format&fit=crop&q=80'
-    },
-    {
-        id: '4',
-        title: 'Handmade Jewelry Showcase',
-        storeName: 'Artisan Gems',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1573408301185-a1d31f667545?w=800&auto=format&fit=crop&q=60',
-        viewerCount: 450,
-        isLive: false,
-        avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=64&h=64&auto=format&fit=crop&q=80'
-    }
-];
 
 export default function CustomerHomePage() {
     const { user, isAuthenticated } = useAuth();
 
-    // Fetch real stores for the dashboard
+    // Fetch real stores
     const { data: storesData } = useQuery({
         queryKey: ['featured-stores'],
         queryFn: () => storeApi.getStores({ limit: 4 }),
     });
-
     const stores = storesData?.data?.data?.items || [];
+
+    // Fetch live streams from the real API
+    const { data: streamsData, isLoading: streamsLoading } = useQuery({
+        queryKey: ['live-streams'],
+        queryFn: () => streamApi.getStreams({ status: 'live', limit: 4 }),
+        refetchInterval: 30000, // re-poll every 30s
+    });
+    const liveStreams = streamsData?.data?.data?.items || [];
 
     return (
         <div className="space-y-12 pb-20">
@@ -167,12 +135,37 @@ export default function CustomerHomePage() {
                     </div>
 
                     <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-                        {mockStreams.filter(s => s.isLive).map((stream) => (
-                            <StreamCard
-                                key={stream.id}
-                                {...stream}
-                            />
-                        ))}
+                        {streamsLoading ? (
+                            // Skeleton loading state
+                            Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="glass rounded-3xl overflow-hidden animate-pulse">
+                                    <div className="aspect-video bg-white/10" />
+                                    <div className="p-4 space-y-2">
+                                        <div className="h-4 bg-white/10 rounded w-3/4" />
+                                        <div className="h-3 bg-white/5 rounded w-1/2" />
+                                    </div>
+                                </div>
+                            ))
+                        ) : liveStreams.length > 0 ? (
+                            liveStreams.map((stream: any) => (
+                                <StreamCard
+                                    key={stream.id}
+                                    id={stream.id}
+                                    title={stream.title}
+                                    storeName={stream.store?.name || 'Live Store'}
+                                    thumbnailUrl={stream.thumbnailUrl || ''}
+                                    viewerCount={stream.viewerCount || 0}
+                                    isLive={stream.status === 'live'}
+                                    avatarUrl={stream.store?.logoUrl || ''}
+                                />
+                            ))
+                        ) : (
+                            <div className="col-span-4 text-center py-16 text-white/40">
+                                <Play className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                                <p className="text-lg">No streams live right now</p>
+                                <p className="text-sm mt-2">Check back soon or <Link href="/stores" className="text-neon-pink hover:underline">browse stores</Link></p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </section>

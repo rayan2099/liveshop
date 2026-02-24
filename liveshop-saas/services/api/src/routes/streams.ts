@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { createStreamSchema, updateStreamSchema, streamMessageSchema, paginationSchema, generateStreamKey } from '@liveshop/shared';
 import { z } from 'zod';
+import { liveKitService } from '../services/livekit';
 
 const idParamSchema = z.object({ id: z.string().uuid() });
 
@@ -71,6 +72,34 @@ export async function streamRoutes(app: FastifyInstance) {
     reply.send({
       success: true,
       data: { stream },
+    });
+  });
+
+  // Get LiveKit token for a stream
+  app.get('/:id/token', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = idParamSchema.parse(request.params);
+    const stream = await app.prisma.liveStream.findUnique({ where: { id } });
+
+    if (!stream) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Stream not found' },
+      });
+    }
+
+    // Determine if user is host or viewer
+    const isHost = stream.hostId === request.user.id;
+    const participantName = (request.user as any).profile?.firstName || 'User';
+
+    // Generate token
+    const token = await liveKitService.generateToken(id, participantName, isHost);
+
+    reply.send({
+      success: true,
+      data: {
+        token,
+        liveKitUrl: process.env.LIVEKIT_URL || 'ws://localhost:7880'
+      },
     });
   });
 
@@ -318,7 +347,9 @@ export async function streamRoutes(app: FastifyInstance) {
         data: {
           streamId: id,
           userId: request.user.id,
-          ...data,
+          type: data.type,
+          content: data.content,
+          metadata: data.metadata as any,
         },
         include: {
           user: {

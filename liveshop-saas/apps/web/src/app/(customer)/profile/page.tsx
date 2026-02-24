@@ -7,7 +7,7 @@ export default function CustomerProfilePage() {
     const { user, logout } = useAuth();
 
     return (
-        <ProtectedRoute allowedRoles={['customer']}>
+        <ProtectedRoute>
             <div className="max-w-4xl mx-auto px-4 py-8">
                 <div className="mb-8">
                     <h1 className="font-display font-bold text-3xl mb-2">Account Settings</h1>

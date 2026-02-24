@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { createOrderSchema, paginationSchema, ORDER_STATUS, ORDER_STATUS_FLOW } from '@liveshop/shared';
+import { createOrderSchema, paginationSchema, ORDER_STATUS, ORDER_STATUS_FLOW, PLATFORM_FEES } from '@liveshop/shared';
 import { z } from 'zod';
 
 const idParamSchema = z.object({ id: z.string().uuid() });
@@ -280,7 +280,7 @@ export async function orderRoutes(app: FastifyInstance) {
     }
 
     // Validate status transition
-    const allowedTransitions = ORDER_STATUS_FLOW[order.status as keyof typeof ORDER_STATUS_FLOW] || [];
+    const allowedTransitions = (ORDER_STATUS_FLOW[order.status as keyof typeof ORDER_STATUS_FLOW] || []) as unknown as string[];
     if (!allowedTransitions.includes(status)) {
       return reply.status(400).send({
         success: false,
@@ -321,6 +321,27 @@ export async function orderRoutes(app: FastifyInstance) {
     if (status === ORDER_STATUS.PREPARING) updateData.preparingAt = new Date();
     if (status === ORDER_STATUS.READY_FOR_PICKUP) updateData.readyForPickupAt = new Date();
     if (status === ORDER_STATUS.CANCELLED) updateData.cancelledAt = new Date();
+
+    // Auto-create delivery when order is ready for pickup
+    if (status === ORDER_STATUS.READY_FOR_PICKUP) {
+      const existingDelivery = await app.prisma.delivery.findUnique({ where: { orderId: id } });
+      if (!existingDelivery) {
+        const store = await app.prisma.store.findUnique({ where: { id: order.storeId }, select: { address: true, name: true } });
+        await app.prisma.delivery.create({
+          data: {
+            orderId: id,
+            status: 'pending',
+            pickupAddress: store?.address || {},
+            dropoffAddress: order.shippingAddress || {},
+            deliveryFee: PLATFORM_FEES.DELIVERY_BASE_FEE,
+            driverEarnings: Number((PLATFORM_FEES.DELIVERY_BASE_FEE * 0.8).toFixed(2)),
+          },
+        });
+
+        // Notify online drivers about new delivery
+        app.io?.emit('new-delivery-available', { orderId: id, storeName: store?.name });
+      }
+    }
 
     const updatedOrder = await app.prisma.order.update({
       where: { id },
