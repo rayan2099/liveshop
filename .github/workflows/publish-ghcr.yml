@@ -35,8 +35,8 @@ jobs:
       - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: liveshop-saas/services/api/Dockerfile
+          context: ./liveshop-saas
+          file: ./liveshop-saas/services/api/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/liveshop-api:${{ github.sha }}
@@ -46,8 +46,8 @@ jobs:
       - name: Build and push Streaming image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: liveshop-saas/services/streaming/Dockerfile
+          context: ./liveshop-saas
+          file: ./liveshop-saas/services/streaming/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/liveshop-streaming:${{ github.sha }}
