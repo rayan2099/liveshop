@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd liveshop-saas && npm run build",
+  "outputDirectory": "liveshop-saas/apps/web/.next",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+}
