@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -43,14 +44,17 @@ model User {
   kycData   Json   @default("{}") @map("kyc_data") // documents, verification details
 
   walletBalance Decimal @default(0) @map("wallet_balance") @db.Decimal(12, 2)
-  currency      String  @default("USD")
+  currency      String  @default("SAR")
 
-  stripeCustomerId String? @map("stripe_customer_id")
-  stripeAccountId  String? @map("stripe_account_id") // For Connect (stores/drivers)
+  stripeCustomerId String? @map("stripe_customer_id") // kept for backward compat
+  moyasarCustomerId String? @map("moyasar_customer_id")
 
   emailVerified DateTime? @map("email_verified")
   phoneVerified DateTime? @map("phone_verified")
   lastLoginAt   DateTime? @map("last_login_at")
+
+  passwordResetToken     String?   @map("password_reset_token")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -440,7 +444,7 @@ model Order {
   tipAmount      Decimal @default(0) @map("tip_amount") @db.Decimal(12, 2)
   totalAmount    Decimal @map("total_amount") @db.Decimal(12, 2)
 
-  currency String @default("USD")
+  currency String @default("SAR")
 
   // Applied discounts
   couponCode   String? @map("coupon_code")
@@ -547,11 +551,16 @@ model Payment {
   id      String @id @default(uuid())
   orderId String @map("order_id")
 
+  // Moyasar payment fields
+  moyasarPaymentId  String? @unique @map("moyasar_payment_id")
+  moyasarInvoiceKey String? @map("moyasar_invoice_key")
+
+  // Legacy Stripe fields (kept for data migration)
   stripePaymentIntentId String? @map("stripe_payment_intent_id")
   stripeChargeId        String? @map("stripe_charge_id")
 
   amount   Decimal @db.Decimal(12, 2)
-  currency String  @default("USD")
+  currency String  @default("SAR")
 
   status String // requires_confirmation, processing, succeeded, failed, cancelled
 
@@ -569,6 +578,7 @@ model Payment {
   refunds Refund[]
 
   @@index([orderId])
+  @@index([moyasarPaymentId])
   @@index([stripePaymentIntentId])
   @@map("payments")
 }
@@ -578,7 +588,8 @@ model Refund {
   paymentId String @map("payment_id")
   orderId   String @map("order_id")
 
-  stripeRefundId String? @map("stripe_refund_id")
+  moyasarRefundId String? @map("moyasar_refund_id")
+  stripeRefundId String? @map("stripe_refund_id") // legacy
 
   amount  Decimal @db.Decimal(12, 2)
   reason  String?
@@ -716,12 +727,13 @@ model Payout {
   recipientType String @map("recipient_type") // store, driver
 
   amount   Decimal @db.Decimal(12, 2)
-  currency String  @default("USD")
+  currency String  @default("SAR")
 
   status String @default("pending") // pending, processing, completed, failed
 
-  stripeTransferId String? @map("stripe_transfer_id")
-  stripePayoutId   String? @map("stripe_payout_id")
+  moyasarTransferId String? @map("moyasar_transfer_id")
+  stripeTransferId String? @map("stripe_transfer_id") // legacy
+  stripePayoutId   String? @map("stripe_payout_id") // legacy
 
   periodStart DateTime? @map("period_start")
   periodEnd   DateTime? @map("period_end")

@@ -13,13 +13,13 @@ export default function StoresPage() {
     queryFn: () => storeApi.getStores({ search }),
   });
 
-  const stores = data?.data?.items || [];
+  const stores = data?.data?.data?.items || [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <h1 className="font-display font-bold text-3xl">Stores</h1>
-        
+
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
           <input

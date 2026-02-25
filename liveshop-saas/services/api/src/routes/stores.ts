@@ -13,7 +13,6 @@ export async function storeRoutes(app: FastifyInstance) {
 
     const where: any = {
       isActive: true,
-      verificationStatus: 'verified',
     };
 
     if (category) {
@@ -70,11 +69,14 @@ export async function storeRoutes(app: FastifyInstance) {
 
   // Get current user's stores
   app.get('/my-stores', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const userId = (request.user as any).id;
+    console.log(`[GET /my-stores] Fetching stores for userId: ${userId}`);
+
     const stores = await app.prisma.store.findMany({
       where: {
         OR: [
-          { ownerId: (request.user as any).id },
-          { members: { some: { userId: (request.user as any).id } } }
+          { ownerId: userId },
+          { members: { some: { userId: userId } } }
         ],
         isActive: true,
       },
@@ -88,6 +90,8 @@ export async function storeRoutes(app: FastifyInstance) {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    console.log(`[GET /my-stores] Found ${stores.length} stores for userId: ${userId}`);
 
     reply.send({
       success: true,
@@ -172,6 +176,8 @@ export async function storeRoutes(app: FastifyInstance) {
           description: data.description,
           category: data.category,
           address: data.address as any,
+          verificationStatus: 'verified',
+          verifiedAt: new Date(),
           members: {
             create: {
               userId: (request.user as any).id,

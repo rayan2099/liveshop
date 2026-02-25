@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { LayoutDashboard, Video, Package, ShoppingBag, BarChart3, Settings, LogOut } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/streams', label: 'Streams', icon: Video },
+  { href: '/dashboard/broadcast', label: 'Go Live', icon: Video },
   { href: '/dashboard/products', label: 'Products', icon: Package },
   { href: '/dashboard/orders', label: 'Orders', icon: ShoppingBag },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
@@ -17,6 +18,8 @@ const navItems = [
 export function StoreNav() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const storeId = searchParams.get('storeId');
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/5">
@@ -37,12 +40,11 @@ export function StoreNav() {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors ${
-                    isActive
-                      ? 'bg-neon-pink/20 text-neon-pink'
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
-                  }`}
+                  href={(storeId ? `${item.href}?storeId=${storeId}` : item.href) as any}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors ${isActive
+                    ? 'bg-neon-pink/20 text-neon-pink'
+                    : 'text-white/70 hover:text-white hover:bg-white/5'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {item.label}

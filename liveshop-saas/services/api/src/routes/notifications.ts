@@ -16,7 +16,7 @@ export async function notificationRoutes(app: FastifyInstance) {
       const data = schema.parse(request.body);
 
       // Check if subscription already exists
-      const existing = await app.prisma.pushSubscription.findUnique({
+      const existing = await app.prisma.pushSubscription.findFirst({
         where: { endpoint: data.endpoint },
       });
 
@@ -35,7 +35,11 @@ export async function notificationRoutes(app: FastifyInstance) {
         await app.prisma.pushSubscription.create({
           data: {
             userId: request.user.id,
-            ...data,
+            endpoint: data.endpoint,
+            p256dh: data.p256dh,
+            auth: data.auth,
+            deviceType: data.deviceType,
+            deviceId: data.deviceId,
           },
         });
       }

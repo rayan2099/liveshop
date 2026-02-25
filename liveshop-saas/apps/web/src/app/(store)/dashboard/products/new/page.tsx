@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { productApi, storeApi } from '@/lib/api';
 import { Package, Upload, Plus, X, ChevronLeft, Save } from 'lucide-react';
@@ -21,12 +21,19 @@ export default function CreateProductPage() {
     });
     const [newTag, setNewTag] = useState('');
 
+    const searchParams = useSearchParams();
     // Fetch store ID
     const { data: storesData } = useQuery({
         queryKey: ['my-stores'],
         queryFn: () => storeApi.getMyStores(),
     });
-    const storeId = storesData?.data?.items?.[0]?.id;
+
+    const stores = storesData?.data?.data?.items || [];
+    const urlStoreId = searchParams.get('storeId');
+    const store = urlStoreId
+        ? stores.find((s: any) => s.id === urlStoreId) || stores[0]
+        : stores[0];
+    const storeId = store?.id;
 
     const createProductMutation = useMutation({
         mutationFn: (data: any) => productApi.createProduct(data),

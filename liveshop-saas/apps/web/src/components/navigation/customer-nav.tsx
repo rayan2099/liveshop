@@ -45,6 +45,15 @@ export function CustomerNav() {
           <div className="flex items-center gap-2">
             {user ? (
               <>
+                {(user.role === 'store_owner' || user.role === 'admin' || user.role === 'super_admin') && (
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-neon-cyan font-bold hover:bg-neon-cyan/10 transition-colors border border-neon-cyan/20"
+                  >
+                    <Store className="w-4 h-4" />
+                    <span className="hidden lg:inline">Merchant Dashboard</span>
+                  </Link>
+                )}
                 <Link
                   href="/profile"
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors"
@@ -60,9 +69,14 @@ export function CustomerNav() {
                 </button>
               </>
             ) : (
-              <Link href="/login" className="btn-primary text-sm py-2">
-                Sign In
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link href="/login" className="text-sm text-white/70 hover:text-white transition-colors">
+                  Sign In
+                </Link>
+                <Link href="/register" className="btn-primary text-sm py-2 px-6">
+                  Get Started
+                </Link>
+              </div>
             )}
           </div>
         </div>

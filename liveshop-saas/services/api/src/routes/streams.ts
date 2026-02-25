@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { createStreamSchema, updateStreamSchema, streamMessageSchema, paginationSchema, generateStreamKey } from '@liveshop/shared';
 import { z } from 'zod';
+import { liveKitService } from '../services/livekit';
 
 const idParamSchema = z.object({ id: z.string().uuid() });
 
@@ -74,6 +75,34 @@ export async function streamRoutes(app: FastifyInstance) {
     });
   });
 
+  // Get LiveKit token for a stream
+  app.get('/:id/token', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = idParamSchema.parse(request.params);
+    const stream = await app.prisma.liveStream.findUnique({ where: { id } });
+
+    if (!stream) {
+      return reply.status(404).send({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Stream not found' },
+      });
+    }
+
+    // Determine if user is host or viewer
+    const isHost = stream.hostId === request.user.id;
+    const participantName = (request.user as any).profile?.firstName || 'User';
+
+    // Generate token
+    const token = await liveKitService.generateToken(id, participantName, isHost);
+
+    reply.send({
+      success: true,
+      data: {
+        token,
+        liveKitUrl: process.env.LIVEKIT_URL || 'ws://localhost:7880'
+      },
+    });
+  });
+
   // Create stream
   app.post('/', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -92,7 +121,8 @@ export async function streamRoutes(app: FastifyInstance) {
         },
       });
 
-      if (!membership && !['admin', 'super_admin'].includes(request.user.role)) {
+      const userRole = (request.user as any).role;
+      if (!membership && !['admin', 'super_admin'].includes(userRole)) {
         return reply.status(403).send({
           success: false,
           error: { code: 'FORBIDDEN', message: 'Not authorized to create streams for this store' },
@@ -104,12 +134,15 @@ export async function streamRoutes(app: FastifyInstance) {
 
       const stream = await app.prisma.liveStream.create({
         data: {
-          storeId,
-          hostId: request.user.id,
-          ...data,
+          store: { connect: { id: storeId } },
+          host: { connect: { id: (request.user as any).id } },
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
           streamKey,
           roomId,
-          status: data.type === 'scheduled' ? 'scheduled' : 'scheduled',
+          status: data.type === 'scheduled' ? 'scheduled' : 'live',
         },
       });
 
@@ -189,7 +222,7 @@ export async function streamRoutes(app: FastifyInstance) {
       });
     }
 
-    const duration = stream.startedAt 
+    const duration = stream.startedAt
       ? Math.floor((Date.now() - stream.startedAt.getTime()) / 1000)
       : 0;
 
@@ -317,7 +350,9 @@ export async function streamRoutes(app: FastifyInstance) {
         data: {
           streamId: id,
           userId: request.user.id,
-          ...data,
+          type: data.type,
+          content: data.content,
+          metadata: data.metadata as any,
         },
         include: {
           user: {

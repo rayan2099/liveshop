@@ -3,8 +3,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { streamApi } from '@/lib/api';
-import { Users, MessageSquare, ShoppingCart, Heart, Share2, X } from 'lucide-react';
+import { Users, MessageSquare, ShoppingCart, Heart, Share2, X, Play, Package } from 'lucide-react';
 import Link from 'next/link';
+import {
+    LiveKitRoom,
+    VideoConference,
+    RoomAudioRenderer,
+    VideoTrack,
+    useTracks,
+} from '@livekit/components-react';
+import { Track } from 'livekit-client';
+import '@livekit/components-styles';
 
 export default function WatchStreamPage() {
     const params = useParams();
@@ -18,6 +27,8 @@ export default function WatchStreamPage() {
     const [pinnedProduct, setPinnedProduct] = useState<any>(null);
     const [cart, setCart] = useState<any[]>([]);
     const [showCart, setShowCart] = useState(false);
+    const [token, setToken] = useState<string | null>(null);
+    const [liveKitUrl, setLiveKitUrl] = useState<string>('');
 
     useEffect(() => {
         loadStream();
@@ -32,6 +43,13 @@ export default function WatchStreamPage() {
             // Set pinned product if exists
             if (response.data.data.stream.pinnedProducts?.length > 0) {
                 setPinnedProduct(response.data.data.stream.pinnedProducts[0].product);
+            }
+
+            // Fetch LiveKit token if live
+            if (response.data.data.stream.status === 'live') {
+                const tokenRes = await streamApi.getToken(streamId);
+                setToken(tokenRes.data.data.token);
+                setLiveKitUrl(tokenRes.data.data.liveKitUrl);
             }
         } catch (error) {
             console.error('Error loading stream:', error);
@@ -101,45 +119,49 @@ export default function WatchStreamPage() {
                     {/* Main Video Area */}
                     <div className="lg:col-span-2 space-y-4">
                         {/* Video Player */}
-                        <div className="glass rounded-2xl overflow-hidden aspect-video relative">
-                            {stream.status === 'live' ? (
-                                <div className="w-full h-full bg-void-dark flex items-center justify-center">
-                                    <video
-                                        ref={videoRef}
-                                        autoPlay
-                                        playsInline
-                                        className="w-full h-full object-cover"
+                        <div className="glass rounded-2xl overflow-hidden aspect-video relative bg-black">
+                            {stream.status === 'live' && token ? (
+                                <LiveKitRoom
+                                    video={false}
+                                    audio={false}
+                                    token={token}
+                                    serverUrl={liveKitUrl}
+                                    connect={true}
+                                    className="w-full h-full"
+                                >
+                                    <VideoConference
+                                        className="h-full"
+                                        style={{ height: '100%' }}
                                     />
-                                    {/* For demo, show placeholder */}
-                                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-neon-pink/20 to-neon-cyan/20">
-                                        <div className="text-center">
-                                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-neon-pink to-neon-cyan mx-auto mb-4 animate-pulse" />
-                                            <p className="text-xl font-semibold">Stream is Live!</p>
-                                            <p className="text-white/60 text-sm mt-2">Video playback coming soon</p>
-                                        </div>
-                                    </div>
+                                    <RoomAudioRenderer />
+                                </LiveKitRoom>
+                            ) : stream.status === 'live' ? (
+                                <div className="w-full h-full flex flex-col items-center justify-center bg-void-dark">
+                                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-neon-pink mb-4" />
+                                    <p className="text-white/60">Connecting to stream...</p>
                                 </div>
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-void-dark">
                                     <div className="text-center">
+                                        <Package className="w-16 h-16 text-white/5 mx-auto mb-4" />
                                         <p className="text-xl font-semibold mb-2">Stream Offline</p>
-                                        <p className="text-white/60">This stream has ended</p>
+                                        <p className="text-white/60">This show has ended</p>
                                     </div>
                                 </div>
                             )}
 
                             {/* Live Indicator */}
                             {stream.status === 'live' && (
-                                <div className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 bg-red-500 rounded-full">
+                                <div className="absolute top-4 left-4 z-40 flex items-center gap-2 px-4 py-2 bg-red-500 rounded-full shadow-lg">
                                     <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                                    <span className="font-semibold text-sm">LIVE</span>
+                                    <span className="font-black text-[10px] tracking-widest">LIVE</span>
                                 </div>
                             )}
 
                             {/* Viewer Count */}
-                            <div className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 glass rounded-full">
-                                <Users className="w-4 h-4" />
-                                <span className="font-semibold text-sm">{stream.viewerCount || 0}</span>
+                            <div className="absolute top-4 right-4 z-40 flex items-center gap-2 px-4 py-2 glass rounded-full border border-white/10">
+                                <Users className="w-4 h-4 text-neon-cyan" />
+                                <span className="font-bold text-sm tracking-tight">{stream.viewerCount || 0} Viewers</span>
                             </div>
 
                             {/* Action Buttons */}
@@ -163,7 +185,7 @@ export default function WatchStreamPage() {
                                         />
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-semibold truncate">{pinnedProduct.name}</h3>
-                                            <p className="text-neon-pink font-bold text-lg">${pinnedProduct.price}</p>
+                                            <p className="text-neon-pink font-bold text-lg">${Number(pinnedProduct.price).toFixed(2)}</p>
                                         </div>
                                         <button
                                             onClick={() => addToCart(pinnedProduct)}
@@ -307,7 +329,7 @@ export default function WatchStreamPage() {
                                                 <div className="flex items-center justify-between mb-4">
                                                     <span className="font-semibold">Total</span>
                                                     <span className="text-xl font-bold text-neon-pink">
-                                                        ${cart.reduce((sum, item) => sum + parseFloat(item.price), 0).toFixed(2)}
+                                                        ${cart.reduce((sum, item) => sum + (Number(item.price) * (item.quantity || 1)), 0).toFixed(2)}
                                                     </span>
                                                 </div>
                                                 <Link

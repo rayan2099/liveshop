@@ -1,5 +1,7 @@
 {
   "name": "liveshop-saas",
+  "version": "0.0.1",
+  "packageManager": "npm@10.8.2",
   "private": true,
   "scripts": {
     "build": "npm run -w packages/shared build && npm run -w services/streaming build && npm run -w apps/web build",

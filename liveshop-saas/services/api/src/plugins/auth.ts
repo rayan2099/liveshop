@@ -5,11 +5,11 @@ export const authPlugin = fp(async (app: FastifyInstance) => {
   // JWT authentication decorator
   app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const decoded = await request.jwtVerify<{ userId: string; email: string; role: string; tenantId: string }>();
-      
+      const decoded = await request.jwtVerify<{ id: string; email: string; role: string; tenantId: string }>();
+
       // Verify user still exists and is active
       const user = await app.prisma.user.findUnique({
-        where: { id: decoded.userId },
+        where: { id: decoded.id },
         select: { id: true, email: true, role: true, tenantId: true, status: true },
       });
 
@@ -69,10 +69,10 @@ export async function optionalAuth(request: FastifyRequest, reply: FastifyReply)
       return;
     }
 
-    const decoded = await request.jwtVerify<{ userId: string; email: string; role: string; tenantId: string }>();
-    
+    const decoded = await request.jwtVerify<{ id: string; email: string; role: string; tenantId: string }>();
+
     const user = await request.server.prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: decoded.id },
       select: { id: true, email: true, role: true, tenantId: true, status: true },
     });
 

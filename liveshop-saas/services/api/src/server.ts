@@ -32,14 +32,8 @@ declare module 'fastify' {
     prisma: PrismaClient;
     io: any;
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
-  }
-  interface FastifyRequest {
-    user: {
-      id: string;
-      email: string;
-      role: string;
-      tenantId: string;
-    };
+    emitToUser: (userId: string, event: string, data: any) => void;
+    emitToStream: (streamId: string, event: string, data: any) => void;
   }
 }
 
@@ -133,17 +127,34 @@ async function start() {
       }
     });
 
+    // Security: Refuse to start in production with default secrets
+    const jwtSecret = process.env.JWT_SECRET;
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isProduction) {
+      if (!jwtSecret || jwtSecret === 'your-super-secret-jwt-key-change-in-production') {
+        throw new Error('CRITICAL: JWT_SECRET must be set to a secure value in production.');
+      }
+      if (!process.env.MOYASAR_SECRET_KEY) {
+        throw new Error('CRITICAL: MOYASAR_SECRET_KEY must be set in production.');
+      }
+    } else {
+      if (!jwtSecret || jwtSecret === 'your-super-secret-jwt-key-change-in-production') {
+        app.log.warn('⚠️ Using default JWT_SECRET. NOT SECURE for production.');
+      }
+    }
+
     // Register plugins
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     await app.register(cors, {
-      origin: process.env.NODE_ENV === 'production'
-        ? [/\.liveshop\.io$/]
-        : ['http://localhost:3000', 'http://localhost:3001'],
+      origin: isProduction
+        ? [appUrl, /\.liveshop\.io$/, /\.vercel\.app$/] // Allow production URL and Vercel subdomains
+        : [appUrl, 'http://localhost:3000', 'http://localhost:3001'],
       credentials: true,
     });
 
     await app.register(jwt, {
-      secret: process.env.JWT_SECRET || 'supersecret',
-      decode: { complete: true },
+      secret: jwtSecret || 'supersecret',
     });
 
     await app.register(multipart, {
@@ -234,7 +245,7 @@ async function start() {
         });
       }
 
-      reply.status(500).send({
+      return reply.status(500).send({
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
@@ -258,7 +269,7 @@ async function start() {
     });
 
     // Start server
-    const port = parseInt(process.env.API_PORT || '3001');
+    const port = parseInt(process.env.PORT || process.env.API_PORT || '3001');
     await app.listen({ port, host: '0.0.0.0' });
 
     app.log.info(`🚀 API server running on http://localhost:${port}`);

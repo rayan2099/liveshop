@@ -116,6 +116,7 @@ io.on('connection', (socket) => {
                     parameters: {
                         'x-google-start-bitrate': 1000
                     }
+                    // Removed duplicate preferredPayloadType that was here previously
                 },
             ];
 

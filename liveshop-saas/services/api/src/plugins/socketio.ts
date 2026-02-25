@@ -30,7 +30,7 @@ export async function setupSocketIO(app: FastifyInstance) {
     socket.on('join-stream', (streamId: string) => {
       socket.join(`stream:${streamId}`);
       app.log.info(`Socket joined stream: ${streamId}`);
-      
+
       // Broadcast viewer count update
       const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
       const viewerCount = room ? room.size : 0;
@@ -41,7 +41,7 @@ export async function setupSocketIO(app: FastifyInstance) {
     socket.on('leave-stream', (streamId: string) => {
       socket.leave(`stream:${streamId}`);
       app.log.info(`Socket left stream: ${streamId}`);
-      
+
       // Broadcast viewer count update
       const room = io.sockets.adapter.rooms.get(`stream:${streamId}`);
       const viewerCount = room ? room.size : 0;
@@ -51,7 +51,7 @@ export async function setupSocketIO(app: FastifyInstance) {
     // Stream chat message
     socket.on('stream-message', async (data: { streamId: string; message: any }) => {
       const { streamId, message } = data;
-      
+
       // Save message to database
       try {
         await app.prisma.streamMessage.create({
@@ -63,8 +63,8 @@ export async function setupSocketIO(app: FastifyInstance) {
             metadata: message.metadata || {},
           },
         });
-      } catch (err) {
-        app.log.error('Failed to save stream message:', err);
+      } catch (err: any) {
+        app.log.error('Failed to save stream message: %s', err?.message ?? err);
       }
 
       // Broadcast to all viewers
@@ -80,7 +80,7 @@ export async function setupSocketIO(app: FastifyInstance) {
     // Driver location updates
     socket.on('driver-location', (data: { deliveryId: string; location: { lat: number; lng: number } }) => {
       const { deliveryId, location } = data;
-      
+
       // Broadcast to customers tracking this delivery
       io.to(`delivery:${deliveryId}`).emit('location-update', location);
     });

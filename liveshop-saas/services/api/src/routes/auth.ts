@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { registerSchema, loginSchema, verifyPassword, hashPassword, generateToken } from '@liveshop/shared';
 import { z } from 'zod';
+import { sendPasswordResetEmail } from '../services/email';
 
 const refreshTokenSchema = z.object({
   refreshToken: z.string(),
@@ -64,7 +65,7 @@ export async function authRoutes(app: FastifyInstance) {
 
       // Generate tokens
       const accessToken = app.jwt.sign(
-        { userId: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
+        { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
         { expiresIn: '15m' }
       );
 
@@ -141,7 +142,7 @@ export async function authRoutes(app: FastifyInstance) {
 
       // Generate tokens
       const accessToken = app.jwt.sign(
-        { userId: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
+        { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
         { expiresIn: '15m' }
       );
 
@@ -204,7 +205,7 @@ export async function authRoutes(app: FastifyInstance) {
 
       // Generate new access token
       const accessToken = app.jwt.sign(
-        { userId: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
+        { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId },
         { expiresIn: '15m' }
       );
 
@@ -287,7 +288,7 @@ export async function authRoutes(app: FastifyInstance) {
   // Forgot password
   app.post('/forgot-password', async (request: FastifyRequest, reply: FastifyReply) => {
     const schema = z.object({ email: z.string().email() });
-    
+
     try {
       const { email } = schema.parse(request.body);
 
@@ -303,9 +304,25 @@ export async function authRoutes(app: FastifyInstance) {
         });
       }
 
-      // Generate reset token
+      // Generate reset token — expires in 1 hour
       const resetToken = generateToken();
-      // TODO: Save reset token and send email
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await app.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetToken: resetToken,
+          passwordResetExpiresAt: expiresAt,
+        } as any,
+      });
+
+      // Send reset email (non-blocking — failure won't affect response)
+      const firstName = (user.profile as any)?.firstName || '';
+      try {
+        await sendPasswordResetEmail(email, firstName, resetToken);
+      } catch (emailErr) {
+        app.log.warn({ err: emailErr }, 'Failed to send password reset email');
+      }
 
       reply.send({
         success: true,
@@ -316,6 +333,61 @@ export async function authRoutes(app: FastifyInstance) {
         return reply.status(400).send({
           success: false,
           error: { code: 'VALIDATION_ERROR', message: 'Invalid email', details: error.errors },
+        });
+      }
+      throw error;
+    }
+  });
+
+  // Reset password (consume token)
+  app.post('/reset-password', async (request: FastifyRequest, reply: FastifyReply) => {
+    const schema = z.object({
+      token: z.string().min(1),
+      password: z.string().min(8, 'Password must be at least 8 characters'),
+    });
+
+    try {
+      const { token, password } = schema.parse(request.body);
+
+      const user = await app.prisma.user.findFirst({
+        where: {
+          passwordResetToken: token,
+          passwordResetExpiresAt: { gt: new Date() },
+        } as any,
+      });
+
+      if (!user) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'INVALID_RESET_TOKEN', message: 'Reset link is invalid or has expired' },
+        });
+      }
+
+      // Set the new password and clear the reset token
+      await app.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashPassword(password),
+          passwordResetToken: null,
+          passwordResetExpiresAt: null,
+        } as any,
+      });
+
+      // Revoke all existing refresh tokens for this user
+      await app.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      reply.send({
+        success: true,
+        data: { message: 'Password reset successfully. Please log in with your new password.' },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors },
         });
       }
       throw error;

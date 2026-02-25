@@ -14,6 +14,7 @@
     "inlineSources": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
+    "rootDir": "src",
     "outDir": "./dist",
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -25,7 +26,7 @@
         "./src/*"
       ],
       "@liveshop/shared": [
-        "../../packages/shared/src/index.ts"
+        "../../packages/shared/dist/index.d.ts"
       ]
     }
   },

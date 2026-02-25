@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { createOrderSchema, paginationSchema, ORDER_STATUS, ORDER_STATUS_FLOW } from '@liveshop/shared';
+import { createOrderSchema, paginationSchema, ORDER_STATUS, ORDER_STATUS_FLOW, PLATFORM_FEES } from '@liveshop/shared';
 import { z } from 'zod';
 
 const idParamSchema = z.object({ id: z.string().uuid() });
@@ -7,10 +7,12 @@ const idParamSchema = z.object({ id: z.string().uuid() });
 export async function orderRoutes(app: FastifyInstance) {
   // Get my orders (customer)
   app.get('/my', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const { page, limit, status } = paginationSchema.parse(request.query);
+    const { q, page, limit } = paginationSchema.parse(request.query);
+    const { status } = request.query as any;
     const skip = (page - 1) * limit;
 
-    const where: any = { customerId: request.user.id };
+    const userId = (request.user as any).id;
+    const where: any = { customerId: userId };
     if (status) where.status = status;
 
     const [orders, total] = await Promise.all([
@@ -49,15 +51,18 @@ export async function orderRoutes(app: FastifyInstance) {
   // Get store orders (store owner/staff)
   app.get('/store/:storeId', { onRequest: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { storeId } = request.params as { storeId: string };
-    const { page, limit, status } = paginationSchema.parse(request.query);
+    const { q, page, limit } = paginationSchema.parse(request.query);
+    const { status } = request.query as any;
     const skip = (page - 1) * limit;
 
     // Check authorization
+    const userId = (request.user as any).id;
+    const userRole = (request.user as any).role;
     const membership = await app.prisma.storeMember.findFirst({
-      where: { storeId, userId: request.user.id },
+      where: { storeId, userId },
     });
 
-    if (!membership && !['admin', 'super_admin'].includes(request.user.role)) {
+    if (!membership && !['admin', 'super_admin'].includes(userRole)) {
       return reply.status(403).send({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Not authorized' },
@@ -122,7 +127,7 @@ export async function orderRoutes(app: FastifyInstance) {
     }
 
     // Check authorization
-    const isAuthorized = 
+    const isAuthorized =
       order.customerId === request.user.id ||
       (await app.prisma.storeMember.findFirst({ where: { storeId: order.storeId, userId: request.user.id } })) ||
       ['admin', 'super_admin'].includes(request.user.role);
@@ -148,6 +153,7 @@ export async function orderRoutes(app: FastifyInstance) {
       // Validate items and calculate totals
       let subtotal = 0;
       const orderItems = [];
+      let storeId: string | null = null;
 
       for (const item of data.items) {
         const product = await app.prisma.product.findUnique({
@@ -162,6 +168,16 @@ export async function orderRoutes(app: FastifyInstance) {
           });
         }
 
+        // Check if all items belong to the same store
+        if (storeId === null) {
+          storeId = product.storeId;
+        } else if (storeId !== product.storeId) {
+          return reply.status(400).send({
+            success: false,
+            error: { code: 'MULTIPLE_STORES', message: 'All items in an order must be from the same store' },
+          });
+        }
+
         // Check inventory
         if (product.inventoryTracking && product.inventoryQuantity < item.quantity) {
           return reply.status(400).send({
@@ -170,7 +186,7 @@ export async function orderRoutes(app: FastifyInstance) {
           });
         }
 
-        const variant = item.variantId 
+        const variant = item.variantId
           ? (product.variants as any[]).find((v: any) => v.id === item.variantId)
           : null;
 
@@ -183,34 +199,34 @@ export async function orderRoutes(app: FastifyInstance) {
           variantId: item.variantId,
           name: product.name,
           sku: variant?.sku || product.sku,
-          image: variant?.image || product.images[0],
+          image: variant?.image || (product.images as string[])?.[0] || 'https://via.placeholder.com/100',
           quantity: item.quantity,
           unitPrice: price,
           total: itemTotal,
         });
       }
 
-      // All items must be from the same store
-      const storeIds = new Set(orderItems.map(item => 
-        data.items.find(i => i.productId === item.productId)?.storeId
-      ));
-      
-      // Get store from first product
-      const firstProduct = await app.prisma.product.findUnique({
-        where: { id: data.items[0].productId },
-      });
+      if (!storeId) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'EMPTY_ORDER', message: 'Order must contain at least one item' },
+        });
+      }
 
       const taxRate = 0.08; // 8% tax
       const taxAmount = subtotal * taxRate;
       const totalAmount = subtotal + taxAmount;
 
+      const userId = (request.user as any).id;
+      const tenantId = (request.user as any).tenantId;
+
       // Create order
       const order = await app.prisma.order.create({
         data: {
           orderNumber: `ORD-${Date.now()}`,
-          tenantId: request.user.tenantId,
-          customerId: request.user.id,
-          storeId: firstProduct!.storeId,
+          tenantId: tenantId,
+          customerId: userId,
+          storeId: storeId,
           subtotal,
           taxAmount,
           taxRate,
@@ -227,7 +243,7 @@ export async function orderRoutes(app: FastifyInstance) {
           orderId: order.id,
           status: ORDER_STATUS.PENDING,
           note: 'Order placed',
-          actorId: request.user.id,
+          actorId: userId,
           actorType: 'customer',
         },
       });
@@ -264,7 +280,7 @@ export async function orderRoutes(app: FastifyInstance) {
     }
 
     // Validate status transition
-    const allowedTransitions = ORDER_STATUS_FLOW[order.status as keyof typeof ORDER_STATUS_FLOW] || [];
+    const allowedTransitions = (ORDER_STATUS_FLOW[order.status as keyof typeof ORDER_STATUS_FLOW] || []) as unknown as string[];
     if (!allowedTransitions.includes(status)) {
       return reply.status(400).send({
         success: false,
@@ -272,21 +288,24 @@ export async function orderRoutes(app: FastifyInstance) {
       });
     }
 
+    const userId = (request.user as any).id;
+    const userRole = (request.user as any).role;
+
     // Check authorization based on new status
     let isAuthorized = false;
     if (['confirmed', 'preparing', 'ready_for_pickup'].includes(status)) {
       // Store actions
       const membership = await app.prisma.storeMember.findFirst({
-        where: { storeId: order.storeId, userId: request.user.id },
+        where: { storeId: order.storeId, userId },
       });
-      isAuthorized = !!membership || ['admin', 'super_admin'].includes(request.user.role);
+      isAuthorized = !!membership || ['admin', 'super_admin'].includes(userRole);
     } else if (['cancelled'].includes(status)) {
       // Customer or store can cancel
-      isAuthorized = order.customerId === request.user.id || 
-        !!(await app.prisma.storeMember.findFirst({ where: { storeId: order.storeId, userId: request.user.id } })) ||
-        ['admin', 'super_admin'].includes(request.user.role);
+      isAuthorized = order.customerId === userId ||
+        !!(await app.prisma.storeMember.findFirst({ where: { storeId: order.storeId, userId } })) ||
+        ['admin', 'super_admin'].includes(userRole);
     } else {
-      isAuthorized = ['admin', 'super_admin'].includes(request.user.role);
+      isAuthorized = ['admin', 'super_admin'].includes(userRole);
     }
 
     if (!isAuthorized) {
@@ -303,6 +322,27 @@ export async function orderRoutes(app: FastifyInstance) {
     if (status === ORDER_STATUS.READY_FOR_PICKUP) updateData.readyForPickupAt = new Date();
     if (status === ORDER_STATUS.CANCELLED) updateData.cancelledAt = new Date();
 
+    // Auto-create delivery when order is ready for pickup
+    if (status === ORDER_STATUS.READY_FOR_PICKUP) {
+      const existingDelivery = await app.prisma.delivery.findUnique({ where: { orderId: id } });
+      if (!existingDelivery) {
+        const store = await app.prisma.store.findUnique({ where: { id: order.storeId }, select: { address: true, name: true } });
+        await app.prisma.delivery.create({
+          data: {
+            orderId: id,
+            status: 'pending',
+            pickupAddress: store?.address || {},
+            dropoffAddress: order.shippingAddress || {},
+            deliveryFee: PLATFORM_FEES.DELIVERY_BASE_FEE,
+            driverEarnings: Number((PLATFORM_FEES.DELIVERY_BASE_FEE * 0.8).toFixed(2)),
+          },
+        });
+
+        // Notify online drivers about new delivery
+        app.io?.emit('new-delivery-available', { orderId: id, storeName: store?.name });
+      }
+    }
+
     const updatedOrder = await app.prisma.order.update({
       where: { id },
       data: updateData,
@@ -314,13 +354,15 @@ export async function orderRoutes(app: FastifyInstance) {
         orderId: id,
         status,
         note,
-        actorId: request.user.id,
-        actorType: request.user.role === 'customer' ? 'customer' : 'store_staff',
+        actorId: userId,
+        actorType: userRole === 'customer' ? 'customer' : 'store_staff',
       },
     });
 
     // Notify customer
-    app.emitToUser?.(order.customerId, 'order-update', { orderId: id, status });
+    if (app.emitToUser) {
+      app.emitToUser(order.customerId, 'order-update', { orderId: id, status });
+    }
 
     reply.send({
       success: true,

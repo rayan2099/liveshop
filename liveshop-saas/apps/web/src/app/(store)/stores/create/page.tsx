@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { storeApi } from '@/lib/api';
 import { Store, MapPin, FileText, Tag, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
 
 const categories = [
     'Fashion & Apparel',
@@ -23,6 +25,8 @@ const categories = [
 
 export default function CreateStorePage() {
     const router = useRouter();
+    const queryClient = useQueryClient();
+    const { refetchUser } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
@@ -33,7 +37,7 @@ export default function CreateStorePage() {
             street: '',
             city: '',
             state: '',
-            zipCode: '',
+            postalCode: '',
             country: 'USA',
         },
     });
@@ -64,10 +68,29 @@ export default function CreateStorePage() {
             const response = await storeApi.createStore(formData);
             const store = response.data.data.store;
 
-            // Redirect to store dashboard
+            // Refresh query cache so the dashboard sees the new store
+            await queryClient.invalidateQueries({ queryKey: ['my-stores'] });
+
+            // Refresh user data so the app knows the user is now a store owner
+            await refetchUser();
+
+            // Success! Store is created, now go to dashboard
             router.push(`/dashboard?storeId=${store.id}`);
         } catch (err: any) {
-            setError(err.response?.data?.error?.message || 'Failed to create store');
+            const serverError = err.response?.data?.error;
+
+            // Check for the "taken" error specifically
+            if (serverError?.code === 'SLUG_EXISTS') {
+                setError('A store with this name already exists. Please choose a unique name (or use your other account if you already created this one).');
+                setIsLoading(false);
+                return;
+            }
+
+            if (serverError?.code === 'VALIDATION_ERROR' && serverError.details) {
+                setError(`Validation failed: ${serverError.details[0]?.message || 'Please check your inputs'}`);
+            } else {
+                setError(serverError?.message || 'Failed to create store');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -99,7 +122,7 @@ export default function CreateStorePage() {
                     </div>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-semibold">
                             {error}
                         </div>
                     )}
@@ -218,8 +241,8 @@ export default function CreateStorePage() {
                                     <label className="block text-sm font-medium mb-2">ZIP Code</label>
                                     <input
                                         type="text"
-                                        name="address.zipCode"
-                                        value={formData.address.zipCode}
+                                        name="address.postalCode"
+                                        value={formData.address.postalCode}
                                         onChange={handleChange}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:outline-none focus:border-neon-pink transition-colors"
                                         placeholder="10001"

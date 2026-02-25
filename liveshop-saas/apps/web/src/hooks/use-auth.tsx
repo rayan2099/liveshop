@@ -54,9 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async () => {
     try {
+      console.log('[useAuth] Fetching user...');
       const response = await authApi.me();
+      console.log('[useAuth] User fetched:', response.data.data.user);
       setUser(response.data.data.user);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[useAuth] Fetch user failed:', error.response?.data || error.message);
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
     } finally {
@@ -67,12 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
     const { user, tokens } = response.data.data;
-    
+
     localStorage.setItem('accessToken', tokens.accessToken);
     localStorage.setItem('refreshToken', tokens.refreshToken);
-    
+
     setUser(user);
-    
+
     // Redirect based on role
     redirectBasedOnRole(user.role);
   };
@@ -80,10 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterData) => {
     const response = await authApi.register(data);
     const { user, tokens } = response.data.data;
-    
+
     localStorage.setItem('accessToken', tokens.accessToken);
     localStorage.setItem('refreshToken', tokens.refreshToken);
-    
+
     setUser(user);
     redirectBasedOnRole(user.role);
   };
@@ -97,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Ignore error
       }
     }
-    
+
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     setUser(null);
@@ -152,11 +155,11 @@ export function useAuth() {
 }
 
 // Protected route wrapper
-export function ProtectedRoute({ 
-  children, 
-  allowedRoles = [] 
-}: { 
-  children: ReactNode; 
+export function ProtectedRoute({
+  children,
+  allowedRoles = []
+}: {
+  children: ReactNode;
   allowedRoles?: string[];
 }) {
   const { user, isLoading, isAuthenticated } = useAuth();
@@ -166,7 +169,7 @@ export function ProtectedRoute({
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
-    
+
     if (!isLoading && isAuthenticated && allowedRoles.length > 0) {
       if (!allowedRoles.includes(user?.role || '')) {
         router.push('/unauthorized');
@@ -176,8 +179,9 @@ export function ProtectedRoute({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neon-pink"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-void">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neon-pink mb-4"></div>
+        <p className="text-white/60 animate-pulse font-medium">Verifying your session...</p>
       </div>
     );
   }

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Navigation, Package, DollarSign, Clock, Power } from 'lucide-react';
 import { deliveryApi } from '@/lib/api';
 
 export default function DriverDashboardPage() {
+  const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(false);
 
   const { data: availableDeliveries } = useQuery({
@@ -22,20 +23,24 @@ export default function DriverDashboardPage() {
 
   const toggleMutation = useMutation({
     mutationFn: () => deliveryApi.toggleAvailability(),
-    onSuccess: () => setIsOnline(!isOnline),
+    onSuccess: () => {
+      setIsOnline(!isOnline);
+      queryClient.invalidateQueries({ queryKey: ['available-deliveries'] });
+    },
   });
 
   const acceptMutation = useMutation({
     mutationFn: (id: string) => deliveryApi.acceptDelivery(id),
     onSuccess: () => {
-      // Add refetch
+      queryClient.invalidateQueries({ queryKey: ['available-deliveries'] });
+      queryClient.invalidateQueries({ queryKey: ['my-deliveries'] });
     }
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string, status: string }) => deliveryApi.updateStatus(id, { status }),
     onSuccess: () => {
-      // Add refetch or notification here
+      queryClient.invalidateQueries({ queryKey: ['my-deliveries'] });
     }
   });
 
@@ -112,7 +117,7 @@ export default function DriverDashboardPage() {
                       <p className="text-sm text-white/50">{delivery.order?.items?.length} items • 2.4 km away</p>
                     </div>
                     <div className="bg-neon-cyan/10 px-3 py-1 rounded-lg">
-                      <p className="font-bold text-neon-cyan">${delivery.deliveryFee.toFixed(2)}</p>
+                      <p className="font-bold text-neon-cyan">${Number(delivery.deliveryFee).toFixed(2)}</p>
                     </div>
                   </div>
 
@@ -170,7 +175,7 @@ export default function DriverDashboardPage() {
                     </div>
                     <div className="bg-white/5 p-3 rounded-xl">
                       <p className="text-xs text-white/40 mb-1">Total Fee</p>
-                      <p className="font-medium text-sm text-neon-cyan">${(delivery.deliveryFee + (delivery.tipAmount || 0)).toFixed(2)}</p>
+                      <p className="font-medium text-sm text-neon-cyan">${(Number(delivery.deliveryFee) + (Number(delivery.tipAmount) || 0)).toFixed(2)}</p>
                     </div>
                   </div>
 
@@ -192,6 +197,22 @@ export default function DriverDashboardPage() {
                       </button>
                     )}
                     {delivery.status === 'picked_up' && (
+                      <button
+                        onClick={() => updateStatusMutation.mutate({ id: delivery.id, status: 'in_transit' })}
+                        className="flex-1 py-3 bg-neon-cyan text-black rounded-xl font-bold text-sm"
+                      >
+                        Start Transit
+                      </button>
+                    )}
+                    {delivery.status === 'in_transit' && (
+                      <button
+                        onClick={() => updateStatusMutation.mutate({ id: delivery.id, status: 'at_dropoff' })}
+                        className="flex-1 py-3 bg-neon-pink text-white rounded-xl font-bold text-sm"
+                      >
+                        Arrived at Dropoff
+                      </button>
+                    )}
+                    {delivery.status === 'at_dropoff' && (
                       <button
                         onClick={() => updateStatusMutation.mutate({ id: delivery.id, status: 'delivered' })}
                         className="flex-1 py-3 bg-green-500 text-white rounded-xl font-bold text-sm"

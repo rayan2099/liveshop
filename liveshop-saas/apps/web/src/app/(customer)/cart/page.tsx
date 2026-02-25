@@ -91,7 +91,7 @@ export default function CartPage() {
                                         {item.storeName && (
                                             <p className="text-sm text-white/60 mb-2">{item.storeName}</p>
                                         )}
-                                        <p className="text-neon-pink font-bold text-xl">${item.price.toFixed(2)}</p>
+                                        <p className="text-neon-pink font-bold text-xl">${Number(item.price).toFixed(2)}</p>
                                     </div>
                                     <div className="flex flex-col items-end gap-3">
                                         <button
@@ -129,15 +129,15 @@ export default function CartPage() {
                             <div className="space-y-3 mb-6">
                                 <div className="flex items-center justify-between">
                                     <span className="text-white/60">Subtotal</span>
-                                    <span className="font-semibold">${subtotal.toFixed(2)}</span>
+                                    <span className="font-semibold">${Number(subtotal).toFixed(2)}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-white/60">Tax (8%)</span>
-                                    <span className="font-semibold">${tax.toFixed(2)}</span>
+                                    <span className="font-semibold">${Number(tax).toFixed(2)}</span>
                                 </div>
                                 <div className="border-t border-white/10 pt-3 flex items-center justify-between">
                                     <span className="font-semibold text-lg">Total</span>
-                                    <span className="font-bold text-2xl text-neon-pink">${total.toFixed(2)}</span>
+                                    <span className="font-bold text-2xl text-neon-pink">${Number(total).toFixed(2)}</span>
                                 </div>
                             </div>
 
