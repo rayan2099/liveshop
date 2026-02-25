@@ -8,6 +8,45 @@ import { useQuery } from '@tanstack/react-query';
 import { storeApi, streamApi } from '@/lib/api';
 
 
+const mockStreams = [
+    {
+        id: 'mock-1',
+        title: 'New Season Collection',
+        storeName: 'Urban Style',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80',
+        viewerCount: 0,
+        isLive: false,
+        avatarUrl: ''
+    },
+    {
+        id: 'mock-2',
+        title: 'Gamer Setup Showcase',
+        storeName: 'Tech Zone',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&q=80',
+        viewerCount: 0,
+        isLive: false,
+        avatarUrl: ''
+    },
+    {
+        id: 'mock-3',
+        title: 'Morning Skincare Routine',
+        storeName: 'Glow Up',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&q=80',
+        viewerCount: 0,
+        isLive: false,
+        avatarUrl: ''
+    },
+    {
+        id: 'mock-4',
+        title: 'Home Office Essentials',
+        storeName: 'Minimalist Inc',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80',
+        viewerCount: 0,
+        isLive: false,
+        avatarUrl: ''
+    }
+];
+
 export default function CustomerHomePage() {
     const { user, isAuthenticated } = useAuth();
 

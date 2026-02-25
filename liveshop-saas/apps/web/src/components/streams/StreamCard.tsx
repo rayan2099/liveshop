@@ -22,7 +22,7 @@ export function StreamCard({
 }: StreamCardProps) {
     return (
         <Link
-            href={`/streams/${id}`}
+            href={`/watch/${id}`}
             className="group relative block aspect-video overflow-hidden rounded-xl bg-gray-900 shadow-lg transition-transform hover:scale-[1.02]"
         >
             {/* Thumbnail */}
