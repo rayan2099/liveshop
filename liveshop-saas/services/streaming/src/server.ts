@@ -116,7 +116,6 @@ io.on('connection', (socket) => {
                     parameters: {
                         'x-google-start-bitrate': 1000
                     },
-                    preferredPayloadType: 96,
                 },
             ];
 
