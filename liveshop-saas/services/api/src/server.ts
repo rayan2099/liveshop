@@ -148,7 +148,7 @@ async function start() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     await app.register(cors, {
       origin: isProduction
-        ? [appUrl, /\.liveshop\.io$/]
+        ? [appUrl, /\.liveshop\.io$/, /\.vercel\.app$/] // Allow production URL and Vercel subdomains
         : [appUrl, 'http://localhost:3000', 'http://localhost:3001'],
       credentials: true,
     });
