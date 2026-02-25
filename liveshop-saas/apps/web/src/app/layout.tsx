@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { Suspense } from 'react';
 
 export const metadata: Metadata = {
   title: 'LiveShop - Live Retail Platform',
@@ -15,7 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
+        </Providers>
       </body>
     </html>
   );
