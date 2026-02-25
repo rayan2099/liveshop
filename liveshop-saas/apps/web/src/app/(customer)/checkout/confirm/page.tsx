@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { paymentApi } from '@/lib/api';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function CheckoutConfirmPage() {
+function CheckoutConfirmContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -105,5 +105,17 @@ export default function CheckoutConfirmPage() {
                 </Link>
             </div>
         </div>
+    );
+}
+
+export default function CheckoutConfirmPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-void flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-neon-pink animate-spin" />
+            </div>
+        }>
+            <CheckoutConfirmContent />
+        </Suspense>
     );
 }

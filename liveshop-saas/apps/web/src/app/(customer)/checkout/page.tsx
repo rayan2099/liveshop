@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { orderApi, paymentApi } from '@/lib/api';
 import { CreditCard, MapPin, Package, Lock, Loader2, ArrowLeft } from 'lucide-react';
 import Script from 'next/script';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
@@ -377,5 +377,17 @@ export default function CheckoutPage() {
                 }
             `}</style>
         </div>
+    );
+}
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-void flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-neon-pink animate-spin" />
+            </div>
+        }>
+            <CheckoutContent />
+        </Suspense>
     );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -12,10 +12,10 @@ const roles = [
   { id: 'driver', label: 'Driver', icon: Truck, description: 'Deliver orders' },
 ];
 
-export default function RegisterPage() {
+function RegisterForm() {
   const searchParams = useSearchParams();
   const defaultRole = searchParams.get('role') || 'customer';
-  
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -84,11 +84,10 @@ export default function RegisterPage() {
                     key={role.id}
                     type="button"
                     onClick={() => setFormData({ ...formData, role: role.id })}
-                    className={`p-4 rounded-xl border transition-all ${
-                      formData.role === role.id
+                    className={`p-4 rounded-xl border transition-all ${formData.role === role.id
                         ? 'border-neon-pink bg-neon-pink/10'
                         : 'border-white/10 hover:border-white/30'
-                    }`}
+                      }`}
                   >
                     <Icon className={`w-6 h-6 mx-auto mb-2 ${formData.role === role.id ? 'text-neon-pink' : 'text-white/60'}`} />
                     <p className={`text-sm font-medium ${formData.role === role.id ? 'text-white' : 'text-white/60'}`}>
@@ -207,5 +206,17 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-void flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neon-pink"></div>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }
