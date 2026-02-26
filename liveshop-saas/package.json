@@ -4,7 +4,7 @@
   "packageManager": "npm@10.8.2",
   "private": true,
   "scripts": {
-    "build": "npm run -w packages/shared build && npm run -w services/streaming build && npm run -w apps/web build",
+    "build": "npm run -w packages/shared build && cd packages/shared && npx prisma migrate deploy && npx prisma db seed && cd ../../ && npm run -w services/streaming build && npm run -w apps/web build",
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "test": "turbo run test",
